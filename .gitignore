@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+*.jar
+
+SentiStrengthJavaManual.doc
+
+_targets/meta/
+
+_targets/objects/
