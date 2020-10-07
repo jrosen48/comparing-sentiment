@@ -1,4 +1,6 @@
 library(targets)
+library(tidyverse)
+library(stringr)
 
 source(here::here("R", "functions.R"))
 
