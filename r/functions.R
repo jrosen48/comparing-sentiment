@@ -160,3 +160,7 @@ tidytext_master <- function(d){
 }
 
 ##### ADD TWEET CONTEXT VARIABLE AND IDENTIFY CHATS ####
+
+##### DESCRIPTIVES #####
+
+##### ANALYSIS #####
