@@ -7,7 +7,7 @@ create_raw_data <- function(){
   d <- NULL
   for (fn in fns){
     load(here::here("data-raw", fn))
-    tweets_dl$dl_at <- file.info(here::here("data-raw", fn)$mtime)
+    tweets_dl$dl_at <- file.info(here::here("data-raw", fn))$mtime
     d <- rbind(d, tweets_dl)
     cat("\014", round(which(fn == fns)/length(fns)*100, 0), "% complete\n")
   }
