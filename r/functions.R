@@ -76,3 +76,87 @@ add_vars_master <- function(d){
 }
 
 ##### ADD TIDYTEXT VARIABLES ####
+
+create_tweet_tokens <- function(d){
+ return(
+    d %>% 
+      select("status_id", "text") %>% 
+      unnest_tokens(word, text)
+ )
+}
+
+add_bing <- function(d, tt){
+  res <- tt %>%
+    inner_join(get_sentiments("bing")) %>%
+    count(index = status_id, sentiment) %>%
+    spread(sentiment, n, fill = 0) %>%
+    mutate(sentiment_scale = positive - negative)
+  return(d %>% left_join(res))
+}
+
+add_afinn <- function(d, tt){
+  res <- tt %>%
+    inner_join(get_sentiments("afinn")) %>%
+    mutate(pos = ifelse(value>0, value, 0)) %>%
+    mutate(neg = ifelse(value<0, value, 0)) %>%
+    group_by(status_id) %>%
+    summarise(afinn_pos = sum(pos), afinn_neg = sum(neg)) %>%
+    mutate(afinn_scale = afinn_pos + afinn_neg)
+  return(d %>% left_join(res))
+}
+
+add_loughran <- function(d, tt){
+  res <- tt %>%
+    inner_join(get_sentiments("loughran")) %>%
+    count(index = status_id, sentiment) %>%
+    spread(sentiment, n, fill = 0) %>%
+    mutate(sentiment_scale = positive - negative) %>%
+    rename(status_id = index, loughran_pos = positive,
+           loughran_neg = negative, loughran_scale = sentiment_scale)
+  return(d %>% left_join(res))
+}
+
+add_nrc <- function(d, tt){
+  res <- tt %>%
+    inner_join(get_sentiments("nrc")) %>%
+    count(index = status_id, sentiment) %>%
+    spread(sentiment, n, fill = 0) %>%
+    mutate(sentiment_scale = positive - negative)
+    rename(status_id = index, nrc_pos = positive,
+         nrc_neg = negative, nrc_scale = sentiment_scale)
+  return(d %>% left_join(res))
+}
+
+add_tidytext <- function(d){
+  d$tidytext_scale <- apply(cbind(
+      d$bing_scale,
+      d$afinn_scale,
+      d$loughran_scale,
+      d$nrc_scale
+  ), 1, mean, na.rm=T) # biggest possible mean 
+  return(d)
+}
+
+scale_sentiment_scales <- function(d){
+  d$bing_scale <- scale(d$bing_scale)
+  d$afinn_scale <- scale(d$afinn_scale)
+  d$loughran_scale <- scale(d$loughran_scale)
+  d$nrc_scale <- scale(d$nrc_scale)
+  d$tidytext_scale <- scale(d$tidytext_scale)
+  return(d)
+}
+
+tidytext_master <- function(d){
+  tt <- create_tweet_tokens(d)
+  return(
+    d %>%
+      add_bing(tt=tt) %>%
+      add_afinn(tt=tt) %>%
+      add_loughran(tt=tt) %>%
+      add_nrc(tt=tt) %>%
+      add_tidytext() %>%
+      scale_sentiment_scales()
+  )
+}
+
+##### ADD TWEET CONTEXT VARIABLE AND IDENTIFY CHATS ####
