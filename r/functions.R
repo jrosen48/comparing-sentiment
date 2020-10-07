@@ -48,10 +48,31 @@ add_nwords <- function(d){
   return(d)
 }
 
+add_sentistrength <- function(d){
+  scale <- read.table(here::here("data-sentiment", "sentistrength_scale.txt"), 
+                      sep="\t", header = T, quote="")
+  d$ss_pos <- scale[,1]
+  d$ss_neg <- scale[,2]
+  d$ss_binary <- read.table(here::here("data-sentiment", "sentistrength_binary.txt")
+                            , sep="\t", header = T, quote="")[,1]
+  return(d)
+}
+
+add_liwc <- function(d){
+  liwc <- read.csv(here::here("data-sentiment", "liwc_results.csv"))
+  d$liwc_pos <- liwc$posemo
+  d$liwc_neg <- liwc$negemo
+  return(d)
+}
+
 add_vars_master <- function(d){
   return(
     d %>%
       add_nchar() %>%
-      add_nwords()
+      add_nwords() %>%
+      add_sentistrength() %>%
+      add_liwc()
   )
 }
+
+##### ADD TIDYTEXT VARIABLES ####
