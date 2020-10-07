@@ -10,8 +10,11 @@ tar_option_set(packages = c("here", "tidyverse"))
 # Define targets
 targets <- list(
   
-  tar_target(test_target, test_f),
-  tar_target(another_test_target, test_f)
+  tar_target(raw_data_file, create_raw_data(), type = "file"),
+  tar_target(raw_data, readRDS(raw_data_file)),
+  
+  tar_target(clean_data_file, rawdata %>% clean_master(), type = "file"),
+  tar_target(clean_data, readRDS(clean_data_file))
   
 )
 

@@ -11,10 +11,29 @@ create_raw_data <- function(){
     d <- rbind(d, tweets_dl)
     cat("\014", round(which(fn == fns)/length(fns)*100, 0), "% complete\n")
   }
+  saveRDS(here::here("data", "data_raw.rds"))
+  return(here::here("data", "data_raw.rds"))
+}
+
+##### Cleaning Data #####
+
+remove_variables <- function(d){
+  return(
+    d %>% select(c("status_id", "user_id", "text", "created_at"))
+  )
+}
+
+preprocess_text <- function(d){
+  d$clean_text <- gsub("[\r\n]", "", d$text)
   return(d)
 }
 
-
-test_f <- function() {
-  "works!"
+clean_master <- function(d){
+  d <- d %>%
+       remove_variables() %>%
+       preprocess_text()
+  saveRDS(d, here::here("data", "data_clean.rds"))
+  return(here::here("data", "data_clean.rds"))
 }
+
+##### Adding main variables #####
