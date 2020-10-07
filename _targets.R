@@ -14,7 +14,9 @@ targets <- list(
   tar_target(raw_data, readRDS(raw_data_file)),
   
   tar_target(clean_data_file, rawdata %>% clean_master(), type = "file"),
-  tar_target(clean_data, readRDS(clean_data_file))
+  tar_target(clean_data, readRDS(clean_data_file)),
+  
+  tar_target(add_main_vars, clean_data %>% add_vars_master())
   
 )
 

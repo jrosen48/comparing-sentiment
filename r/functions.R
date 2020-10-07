@@ -24,7 +24,7 @@ remove_variables <- function(d){
 }
 
 preprocess_text <- function(d){
-  d$clean_text <- gsub("[\r\n]", "", d$text)
+  d$text_clean <- gsub("[\r\n]", "", d$text)
   return(d)
 }
 
@@ -37,3 +37,21 @@ clean_master <- function(d){
 }
 
 ##### Adding main variables #####
+
+add_nchar <- function(d){
+  d$nchar <- nchar(d$text_clean)
+  return(d)
+}
+
+add_nwords <- function(d){
+  d$nwords <- d$text_clean %>% strsplit("\\W+") %>% sapply(length)
+  return(d)
+}
+
+add_vars_master <- function(d){
+  return(
+    d %>%
+      add_nchar() %>%
+      add_nwords()
+  )
+}
