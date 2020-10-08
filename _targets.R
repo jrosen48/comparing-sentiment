@@ -22,7 +22,7 @@ targets <- list(
   tar_target(data_context, data_tidytext %>% context_master()),
   tar_target(data_discrepancy, data_context %>% discrepancy_master()),
   
-  tar_target(final_data_file, data_context %>% save_final_dataset(), format = "file"),
+  tar_target(final_data_file, data_discrepancy %>% save_final_dataset(), format = "file"),
   tar_target(final_data, readRDS(final_data_file)),
   
   tar_target(descriptives, final_data %>% descriptives_master()),
