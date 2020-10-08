@@ -55,6 +55,8 @@ add_sentistrength <- function(d){
                       sep="\t", header = T, quote="")
   d$ss_pos <- scale[,1]
   d$ss_neg <- scale[,2]
+  d$ss_scale <- d$ss_pos + d$ss_neg
+  d$ss_scale_scaled <- d$ss_scale %>% scale()
   d$ss_binary <- read.table(here::here("data-sentiment", "sentistrength_binary.txt")
                             , sep="\t", header = T, quote="")[,1]
   return(d)
@@ -64,6 +66,9 @@ add_liwc <- function(d){
   liwc <- read.csv(here::here("data-sentiment", "liwc_results.csv"))
   d$liwc_pos <- liwc$posemo
   d$liwc_neg <- liwc$negemo
+  d$liwc_scale <- d$liwc_pos - d$liwc_neg
+  d$liwc_scale_scaled <- d$liwc_scale %>% scale()
+  d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
   return(d)
 }
 
@@ -136,8 +141,21 @@ add_nrc <- function(d, tt){
   return(d %>% left_join(res))
 }
 
-## A) SCALE DICTS BEFORE mean()?
-## B) NORMALIZE by nwords?
+divide_by_nwords <- function(d){
+  d$bing_pos <- d$bing_pos / d$nwords
+  d$bing_neg <- d$bing_neg / d$nwords
+  d$bing_scale <- d$bing_scale / d$nwords    
+  d$afinn_pos <- d$afinn_pos / d$nwords
+  d$afinn_neg <- d$afinn_neg / d$nwords     
+  d$afinn_scale <- d$afinn_scale / d$nwords
+  d$loughran_pos <- d$loughran_pos / d$nwords
+  d$loughran_neg <- d$loughran_neg / d$nwords   
+  d$loughran_scale <- d$loughran_scale / d$nwords 
+  d$nrc_pos <- d$nrc_pos / d$nwords
+  d$nrc_neg <- d$nrc_neg / d$nwords       
+  d$nrc_scale <- d$nrc_scale / d$nwords
+  return(d)
+}
 
 add_tidytext <- function(d){
   d$tidytext_scale <- apply(cbind(
@@ -149,12 +167,20 @@ add_tidytext <- function(d){
   return(d)
 }
 
-scale_sentiment_scales <- function(d){
-  d$bing_scale <- scale(d$bing_scale)
-  d$afinn_scale <- scale(d$afinn_scale)
-  d$loughran_scale <- scale(d$loughran_scale)
-  d$nrc_scale <- scale(d$nrc_scale)
-  d$tidytext_scale <- scale(d$tidytext_scale)
+create_tidytext_binaries <- function(d){  # for validation of hand-coding
+  d$bing_binary <- ifelse(d$bing_scale >= 0, 1, 0)
+  d$afinn_binary <- ifelse(d$afinn_scale >= 0, 1, 0)
+  d$loughran_binary <- ifelse(d$loughran_scale >= 0, 1, 0)
+  d$nrc_binary <- ifelse(d$nrc_scale >= 0, 1, 0)
+  d$tidytext_binary <- ifelse(d$tidytext_scale >= 0, 1, 0)
+}
+
+scale_tidytext_scales <- function(d){
+  d$bing_scale_scaled <- scale(d$bing_scale)
+  d$afinn_scale_scaled <- scale(d$afinn_scale)
+  d$loughran_scale_scaled <- scale(d$loughran_scale)
+  d$nrc_scale_scaled <- scale(d$nrc_scale)
+  d$tidytext_scale_scaled <- scale(d$tidytext_scale)
   return(d)
 }
 
@@ -166,12 +192,26 @@ tidytext_master <- function(d){
       add_afinn(tt=tt) %>%
       add_loughran(tt=tt) %>%
       add_nrc(tt=tt) %>%
+      divide_by_nwords() %>%
       add_tidytext() %>%
-      scale_sentiment_scales()
+      create_tidytext_binaries() %>%
+      scale_tidytext_scales()
   )
 }
 
 ##### ADD TWEET CONTEXT VARIABLE AND IDENTIFY CHATS ####
+
+add_q <- function(d){
+  text_small <- d$text %>% tolower()
+  has_ngsschat <- grep("\\#ngsschat\\b", text_small)
+  has_ngss <- grep("\\#ngss\\b|\\bngss\\b", text_small)
+  d$q <- rep(NA, nrow(d))
+  d$q[has_ngsschat] <- "#NGSSchat"
+  d$q[base::setdiff(has_ngss, has_ngsschat)] <- "ngss"  # fill in ngss withough #ngsschat
+  d$q[base::setdiff(1:nrow(d), unique(c(has_ngss, has_ngsschat)))] <- "other" # fill in remaining
+  d$q <- as.factor(d$q)
+  return(d)
+}
 
 add_isChat <- function(d){
   d2 <- d[d$q == "#NGSSchat",] %>% 
@@ -254,23 +294,11 @@ add_isChat <- function(d){
   return(d)
 }
 
-add_q <- function(d){
-  text_small <- d$text %>% tolower()
-  has_ngsschat <- grep("\\#ngsschat\\b", text_small)
-  has_ngss <- grep("\\#ngss\\b|\\bngss\\b", text_small)
-  d$q <- rep(NA, nrow(d))
-  d$q[has_ngsschat] <- "#NGSSchat"
-  d$q[base::setdiff(has_ngss, has_ngsschat)] <- "ngss"  # fill in ngss withough #ngsschat
-  d$q[base::setdiff(1:nrow(d), unique(c(has_ngss, has_ngsschat)))] <- "other" # fill in remaining
-  d$q <- as.factor(d$q)
-  return(d)
-}
-
 context_master <- function(d){
   return(
     d %>%
-      add_isChat() %>%
-      add_q() 
+      add_q() %>%
+      add_isChat() 
   )
 }
 
