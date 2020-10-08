@@ -9,9 +9,11 @@ create_raw_data <- function(){
     load(here::here("data-raw", fn))
     tweets_dl$dl_at <- file.info(here::here("data-raw", fn))$mtime
     d <- rbind(d, tweets_dl)
-    cat("\014", round(which(fn == fns)/length(fns)*100, 0), "% complete\n")
+    cat("\014", round(which(fn == fns)/length(fns)*100, 0), "% files merged\n")
   }
-  saveRDS(here::here("data", "data_raw.rds"))
+  d <- d[order(d$created_at),]
+  d <- d[!duplicated(d$status_id),]
+  saveRDS(d, here::here("data", "data_raw.rds"))
   return(here::here("data", "data_raw.rds"))
 }
 
