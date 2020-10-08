@@ -92,7 +92,10 @@ add_bing <- function(d, tt){
     inner_join(get_sentiments("bing")) %>%
     count(index = status_id, sentiment) %>%
     spread(sentiment, n, fill = 0) %>%
-    mutate(sentiment_scale = positive - negative)
+    mutate(sentiment_scale = positive - negative) %>% 
+    rename(status_id = index, bing_pos = positive,
+           bing_neg = negative, bing_scale = sentiment_scale)
+  cat("*** BING DICTIONARY RESULTS CREATED ***\n")
   return(d %>% left_join(res))
 }
 
@@ -104,6 +107,7 @@ add_afinn <- function(d, tt){
     group_by(status_id) %>%
     summarise(afinn_pos = sum(pos), afinn_neg = sum(neg)) %>%
     mutate(afinn_scale = afinn_pos + afinn_neg)
+  cat("*** AFINN DICTIONARY RESULTS CREATED ***\n")
   return(d %>% left_join(res))
 }
 
@@ -115,19 +119,24 @@ add_loughran <- function(d, tt){
     mutate(sentiment_scale = positive - negative) %>%
     rename(status_id = index, loughran_pos = positive,
            loughran_neg = negative, loughran_scale = sentiment_scale)
+  cat("*** LOUGHRAN DICTIONARY RESULTS CREATED ***\n")
   return(d %>% left_join(res))
 }
 
 add_nrc <- function(d, tt){
   res <- tt %>%
     inner_join(get_sentiments("nrc")) %>%
-    count(index = status_id, sentiment) %>%
+    count(status_id, sentiment) %>%
     spread(sentiment, n, fill = 0) %>%
-    mutate(sentiment_scale = positive - negative)
-    rename(status_id = index, nrc_pos = positive,
-         nrc_neg = negative, nrc_scale = sentiment_scale)
+    mutate(nrc_scale = positive - negative) %>% 
+    rename(nrc_pos = positive, nrc_neg = negative) %>%
+    select(c("status_id", "nrc_pos", "nrc_neg", "nrc_scale"))
+  cat("*** NRC DICTIONARY RESULTS CREATED ***\n")
   return(d %>% left_join(res))
 }
+
+## A) SCALE DICTS BEFORE mean()?
+## B) NORMALIZE by nwords?
 
 add_tidytext <- function(d){
   d$tidytext_scale <- apply(cbind(
@@ -164,14 +173,14 @@ tidytext_master <- function(d){
 ##### ADD TWEET CONTEXT VARIABLE AND IDENTIFY CHATS ####
 
 add_isChat <- function(d){
-  return(0)
+  return(d)
 }
 
 add_q <- function(d){
-  text_small <- d$text.tolower()
+  text_small <- d$text %>% tolower()
   has_ngsschat <- grep("\\#ngsschat+", text_small)
   has_ngss <- grep("\\ngss+", text_small)
-  return(0)
+  return(d)
 }
 
 context_master <- function(d){

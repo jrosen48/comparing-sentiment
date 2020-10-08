@@ -16,7 +16,7 @@ targets <- list(
   tar_target(clean_data_file, raw_data %>% clean_master(), format = "file"),
   tar_target(clean_data, readRDS(clean_data_file)),
   
-  tar_target(data_main_vars, clean_data %>% add_vars_master()),  # format="fst"
+  tar_target(data_main_vars, clean_data %>% add_vars_master()),  
   tar_target(data_tidytext, data_main_vars %>% tidytext_master()),
   tar_target(data_context, data_tidytext %>% context_master()),
   
