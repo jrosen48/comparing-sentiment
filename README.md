@@ -17,6 +17,7 @@ To run the project pipeline, enter and run the following function:
 
 - Raw data: `data-raw`
 - Data that can be shared: `data`
+- Sentiment data from external software: `data-sentiment`
 - Functions: `r/functions.R`
 
 ## Study data
