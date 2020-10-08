@@ -118,7 +118,8 @@ add_loughran <- function(d, tt){
     spread(sentiment, n, fill = 0) %>%
     mutate(sentiment_scale = positive - negative) %>%
     rename(status_id = index, loughran_pos = positive,
-           loughran_neg = negative, loughran_scale = sentiment_scale)
+           loughran_neg = negative, loughran_scale = sentiment_scale) %>%
+    select(c("status_id", "loughran_pos", "loughran_neg", "loughran_scale"))
   cat("*** LOUGHRAN DICTIONARY RESULTS CREATED ***\n")
   return(d %>% left_join(res))
 }
@@ -173,13 +174,95 @@ tidytext_master <- function(d){
 ##### ADD TWEET CONTEXT VARIABLE AND IDENTIFY CHATS ####
 
 add_isChat <- function(d){
+  d2 <- d[d$q == "#NGSSchat",] %>% 
+          select(c("status_id", "created_at", "text")) # subset #NGSSchat data
+  
+  time <- d2$created_at
+  time <- format(time, format="%Y-%m-%d %H")
+
+  freq <- table(time) 
+  freq <- sort(freq, decreasing = T)
+  freq <- freq %>% head(1000) 
+  
+  hours <- names(freq) # Select 1,000 most busy hours in data set
+  
+  # Select tweets at the beginning of these 1,000 hours (+- 5 minutes around edge)
+  
+  hours <- hours %>%  # format to hour
+              sapply(paste, ":00:00 UTC", sep="") %>% 
+              as.character() %>% 
+              as.POSIXct(tz = "UTC")
+  
+  # Add minutes around edges of beginning of hours
+  
+  minutes <- hours
+  
+  for (i in seq(60, 5*60, 60)){
+    minutes <- c(minutes, hours-i) # seconds are added and substracted in steps of 60
+    minutes <- c(minutes, hours+i)
+  }
+  
+  # Standardize tweet posting times to minutes in order to obtain tweets around beginning of must busy hours
+  
+  post_minutes <- d2$created_at %>%
+                     round_date(unit="1 minute")
+  
+  possible_chat_openings <- d2[which(post_minutes %in% minutes),]
+  
+  # Grab tweets with "Welcome to "NGSSchat" and related terms, openings lines have been manually looked up before
+  
+  ind <- grep("Welcome to #NGSSchat", possible_chat_openings$text)
+  ind <- c(ind, grep("Welcome to the first session of #NGSSchat", possible_chat_openings$text))
+  ind <- c(ind, grep("Our #nhed guest moderator for this evening is", possible_chat_openings$text))
+  ind <- c(ind, grep("Excited to learn and connect with my #NGSSchat community-- Join us-- happening", possible_chat_openings$text))
+  
+  ind <- unique(ind)
+  
+  # Sort out which specific hours are chats based on ind
+  
+  hours_with_opening_lines <- possible_chat_openings$created_at[ind] %>%
+                                  format(format="%Y-%m-%d %H") %>%
+                                  sapply(paste, ":00:00 UTC", sep="") %>%
+                                  as.character() %>%
+                                  as.POSIXct(tz = "UTC")
+  
+  chat_hours <- hours[which(hours %in% hours_with_opening_lines)]  # declare busiest hours with opening lines as chat hours
+  
+  # Create Variable "isChat", strict definition of chat as a 1 hour timeframe
+  
+  time <- d2$created_at %>%
+            format(format="%Y-%m-%d %H")
+  
+  hours <- time %>% 
+            sapply(paste, ":00:00 UTC", sep="") %>%
+            as.character() %>%
+            as.POSIXct(tz = "UTC")
+  
+  ind <- which(hours %in% chat_hours)
+  
+  isChat <- rep(0, nrow(d2))
+  isChat[ind] <- 1  # 1 if tweets is in chat session
+  
+  d2$isChat <- isChat
+
+  # Knit back together with full data frame
+  
+  d$isChat <- rep(NA, nrow(d))
+  d$isChat[d$status_id %in% d2$status_id] <- d2$isChat
+  d$isChat <- d$isChat %>% as.factor()
+  
   return(d)
 }
 
 add_q <- function(d){
   text_small <- d$text %>% tolower()
-  has_ngsschat <- grep("\\#ngsschat+", text_small)
-  has_ngss <- grep("\\ngss+", text_small)
+  has_ngsschat <- grep("\\#ngsschat\\b", text_small)
+  has_ngss <- grep("\\#ngss\\b|\\bngss\\b", text_small)
+  d$q <- rep(NA, nrow(d))
+  d$q[has_ngsschat] <- "#NGSSchat"
+  d$q[base::setdiff(has_ngss, has_ngsschat)] <- "ngss"  # fill in ngss withough #ngsschat
+  d$q[base::setdiff(1:nrow(d), unique(c(has_ngss, has_ngsschat)))] <- "other" # fill in remaining
+  d$q <- as.factor(d$q)
   return(d)
 }
 

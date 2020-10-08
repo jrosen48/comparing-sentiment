@@ -1,6 +1,7 @@
 library(targets)
 library(tidyverse)
 library(tidytext)
+library(lubridate)
 
 source(here::here("R", "functions.R"))
 
