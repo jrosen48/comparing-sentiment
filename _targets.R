@@ -1,6 +1,6 @@
 library(targets)
 library(tidyverse)
-library(stringr)
+library(tidytext)
 
 source(here::here("R", "functions.R"))
 
@@ -17,8 +17,14 @@ targets <- list(
   tar_target(clean_data, readRDS(clean_data_file)),
   
   tar_target(data_main_vars, clean_data %>% add_vars_master()),  # format="fst"
-  tar_target(data_tidytext, data_main_vars %>% tidytext_master())
+  tar_target(data_tidytext, data_main_vars %>% tidytext_master()),
+  tar_target(data_context, data_tidytext %>% context_master()),
   
+  tar_target(final_data_file, data_context %>% save_final_dataset(), format = "file"),
+  tar_target(final_data, readRDS(final_data_file)),
+  
+  tar_target(descriptives, final_data %>% descriptives_master()),
+  tar_target(analysis, final_data %>% analysis_master())
   
 )
 

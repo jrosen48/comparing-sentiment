@@ -163,6 +163,40 @@ tidytext_master <- function(d){
 
 ##### ADD TWEET CONTEXT VARIABLE AND IDENTIFY CHATS ####
 
+add_isChat <- function(d){
+  return(0)
+}
+
+add_q <- function(d){
+  text_small <- d$text.tolower()
+  has_ngsschat <- grep("\\#ngsschat+", text_small)
+  has_ngss <- grep("\\ngss+", text_small)
+  return(0)
+}
+
+context_master <- function(d){
+  return(
+    d %>%
+      add_isChat() %>%
+      add_q() 
+  )
+}
+
+##### SAVE FINAL DATA SET #####
+
+save_final_dataset <- function(d){
+  saveRDS(d, here::here("data", "data_final.rds"))
+  return(here::here("data", "data_final.rds"))
+}
+
 ##### DESCRIPTIVES #####
 
+descriptives_master <- function(d){
+  return(0)
+}
+
 ##### ANALYSIS #####
+
+analysis_master <- function(d){
+  return(0)
+}
