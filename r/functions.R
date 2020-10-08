@@ -173,6 +173,7 @@ create_tidytext_binaries <- function(d){  # for validation of hand-coding
   d$loughran_binary <- ifelse(d$loughran_scale >= 0, 1, 0)
   d$nrc_binary <- ifelse(d$nrc_scale >= 0, 1, 0)
   d$tidytext_binary <- ifelse(d$tidytext_scale >= 0, 1, 0)
+  return(d)
 }
 
 scale_tidytext_scales <- function(d){
@@ -302,6 +303,65 @@ context_master <- function(d){
   )
 }
 
+##### DISCREPANCY VARIABLES #####
+
+get_scales <- function(){
+  return(
+    c(
+      "ss_scale_scaled",
+      "liwc_scale_scaled",
+      "bing_scale_scaled",
+      "afinn_scale_scaled",
+      "loughran_scale_scaled",
+      "nrc_scale_scaled",
+      "tidytext_scale_scaled"
+    )
+  )
+}
+
+add_pairwise_disc <- function(d){
+  s_scales <- get_scales()
+  
+  combinations <- t(combn(s_scales, 2))
+  
+  for (i in 1:nrow(combinations)){  # iterate through each combination and build squared diff
+    name <- paste(
+      combinations[i, 1] %>% strsplit("_") %>% unlist() %>% head(1),
+      combinations[i, 2] %>% strsplit("_") %>% unlist() %>% head(1), 
+      "discrepancy", sep="_"
+    )
+    d$temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2
+    names(d)[names(d) == "temp"] <- name
+  }
+  return(d)
+}
+
+add_total_disc <- function(d){  # currently: add all available pairs (less disc for less coverage)
+  s_scales <- get_scales()
+  
+  combinations <- t(combn(s_scales, 2))
+  
+  the_sum <- rep(0, nrow(d))
+  
+  for (i in 1:nrow(combinations)){  
+    temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2 %>% unlist() %>% as.numeric()
+    the_sum[which(!is.na(temp))] <- the_sum[which(!is.na(temp))] + temp[which(!is.na(temp))]
+  } 
+  
+  the_sum[the_sum == 0] <- NA     # reassign NAs for possible 0 coverage
+  d$total_discrepancy <- the_sum
+  
+  return(d)
+}
+
+discrepancy_master <- function(d){
+  return(
+    d %>%
+      add_pairwise_disc() %>%
+      add_total_disc()
+  )
+}
+
 ##### SAVE FINAL DATA SET #####
 
 save_final_dataset <- function(d){
@@ -317,6 +377,6 @@ descriptives_master <- function(d){
 
 ##### ANALYSIS #####
 
-analysis_master <- function(d){
-  return(0)
+analysis_master <- function(d){   # just an example
+  print(cor.test(d$total_discrepancy, d$nwords))
 }
