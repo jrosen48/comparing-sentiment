@@ -22,7 +22,7 @@ targets <- list(
   tar_target(ss_binary_data, read.table(ss_binary_file, sep="\t", header = T, quote="")),
   tar_target(liwc_data, read.csv(liwc_file)),  
   
-  tar_target(raw_with_external, raw_data %>% add_external_master()),
+  tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, liwc_data)),
   
   tar_target(clean_data_file, raw_with_external %>% clean_master(), format = "file"),
   tar_target(clean_data, readRDS(clean_data_file)),

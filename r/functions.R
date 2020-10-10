@@ -17,9 +17,7 @@ create_raw_data <- function(){
 
 ##### ADD EXTERNAL SENTIMENT DATA #####
 
-add_sentistrength <- function(d){
-  tar_load("ss_scale_data")
-  tar_load("ss_binary_data")
+add_sentistrength <- function(d, ss_scale_data, ss_binary_data){
   d$ss_pos <- ss_scale_data[,1]
   d$ss_neg <- ss_scale_data[,2]
   d$ss_scale <- d$ss_pos + d$ss_neg
@@ -28,8 +26,7 @@ add_sentistrength <- function(d){
   return(d)
 }
 
-add_liwc <- function(d){
-  tar_load("liwc_data")
+add_liwc <- function(d, liwc_data){
   d$liwc_pos <- liwc_data$posemo
   d$liwc_neg <- liwc_data$negemo
   d$liwc_scale <- d$liwc_pos - d$liwc_neg
@@ -38,11 +35,11 @@ add_liwc <- function(d){
   return(d)
 }
 
-add_external_master <- function(d){
+add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data){
   return(
     d %>%
-      add_sentistrength() %>%
-      add_liwc()
+      add_sentistrength(ss_scale_data=ss_scale_data, ss_binary_data=ss_binary_data) %>%
+      add_liwc(liwc_data=liwc_data)
   )
 }
 
@@ -60,14 +57,26 @@ remove_variables <- function(d){
 }
 
 preprocess_text <- function(d){
-  d$text_clean <- gsub("[\r\n]", "", d$text)
+  d$text_clean <- d$text %>% 
+    gsub(pattern="https\\S*", replacement="") %>%  # urls
+    gsub(pattern="@\\S*", replacement="") %>%      # tagging
+    gsub(pattern="&amp", replacement="") %>%       # ampersand encoding
+    gsub(pattern="[\r\n]", replacement="") %>%     # line breaks
+    gsub(pattern="[[:punct:]]", replacement="")    # punctuation
   return(d)
+}
+
+remove_langs <- function(d){
+  return(
+    d[d$lang %in% c("en"),]  # english only
+  )
 }
 
 clean_master <- function(d){
   d <- d %>%
        remove_variables() %>%
-       preprocess_text()
+       preprocess_text() %>%
+       remove_langs()
   saveRDS(d, here::here("data", "data_clean.rds"))
   return(here::here("data", "data_clean.rds"))
 }
