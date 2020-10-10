@@ -1,5 +1,3 @@
-#d <- tar_read(raw_data)
-
 ##### READING IN AND COMBINING RAW DATA FILES #####
 
 create_raw_data <- function(){
@@ -17,23 +15,71 @@ create_raw_data <- function(){
   return(here::here("data", "data_raw.rds"))
 }
 
+##### ADD EXTERNAL SENTIMENT DATA #####
+
+add_sentistrength <- function(d, ss_scale_data, ss_binary_data){
+  d$ss_pos <- ss_scale_data[,1]
+  d$ss_neg <- ss_scale_data[,2]
+  d$ss_scale <- d$ss_pos + d$ss_neg
+  d$ss_scale_scaled <- d$ss_scale %>% scale()
+  d$ss_binary <- ss_binary_data[,1]
+  return(d)
+}
+
+add_liwc <- function(d, liwc_data){
+  d$liwc_pos <- liwc_data$posemo
+  d$liwc_neg <- liwc_data$negemo
+  d$liwc_scale <- d$liwc_pos - d$liwc_neg
+  d$liwc_scale_scaled <- d$liwc_scale %>% scale()
+  d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
+  return(d)
+}
+
+add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data){
+  return(
+    d %>%
+      add_sentistrength(ss_scale_data=ss_scale_data, ss_binary_data=ss_binary_data) %>%
+      add_liwc(liwc_data=liwc_data)
+  )
+}
+
 ##### Cleaning Data #####
 
 remove_variables <- function(d){
   return(
-    d %>% select(c("status_id", "user_id", "text", "created_at"))
+    d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
+                   "is_retweet", "is_quote", "reply_to_status_id", "reply_to_user_id",
+                   "favorite_count", "retweet_count", "quote_count", "reply_count", "lang", # tweet level
+                   "followers_count", "friends_count", "listed_count", "statuses_count", "favourites_count", # user level
+                   "ss_pos", "ss_neg", "ss_scale", "ss_scale_scaled", "ss_binary", # sentiment
+                   "liwc_pos", "liwc_neg", "liwc_scale", "liwc_scale_scaled", "liwc_binary"))
   )
 }
 
 preprocess_text <- function(d){
-  d$text_clean <- gsub("[\r\n]", "", d$text)
+  d$text_clean <- d$text %>% 
+    gsub(pattern="https\\S*", replacement="") %>%   # urls
+    gsub(pattern="http\\S*", replacement="") %>%    # urls
+    gsub(pattern="@\\S*", replacement="") %>%       # tagging
+    gsub(pattern="&amp", replacement="") %>%        # ampersand encoding
+    gsub(pattern="[\r\n]", replacement="") %>%      # line breaks
+    gsub(pattern="[[:punct:]]", replacement="") %>% # punctuation, keep hashtags as words
+    gsub(pattern="\\s+", replacement=" ") %>%       # multiple white space to single space
+    base::trimws()                                  # remove white space at start and end of tweets
   return(d)
+}
+
+remove_langs <- function(d){
+  return(
+    d[d$lang %in% c("en"),]  # english only
+  )
 }
 
 clean_master <- function(d){
   d <- d %>%
        remove_variables() %>%
-       preprocess_text()
+       preprocess_text() %>%
+       remove_langs()
   saveRDS(d, here::here("data", "data_clean.rds"))
   return(here::here("data", "data_clean.rds"))
 }
@@ -50,35 +96,11 @@ add_nwords <- function(d){
   return(d)
 }
 
-add_sentistrength <- function(d){
-  scale <- read.table(here::here("data-sentiment", "sentistrength_scale.txt"), 
-                      sep="\t", header = T, quote="")
-  d$ss_pos <- scale[,1]
-  d$ss_neg <- scale[,2]
-  d$ss_scale <- d$ss_pos + d$ss_neg
-  d$ss_scale_scaled <- d$ss_scale %>% scale()
-  d$ss_binary <- read.table(here::here("data-sentiment", "sentistrength_binary.txt")
-                            , sep="\t", header = T, quote="")[,1]
-  return(d)
-}
-
-add_liwc <- function(d){
-  liwc <- read.csv(here::here("data-sentiment", "liwc_results.csv"))
-  d$liwc_pos <- liwc$posemo
-  d$liwc_neg <- liwc$negemo
-  d$liwc_scale <- d$liwc_pos - d$liwc_neg
-  d$liwc_scale_scaled <- d$liwc_scale %>% scale()
-  d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
-  return(d)
-}
-
 add_vars_master <- function(d){
   return(
     d %>%
       add_nchar() %>%
-      add_nwords() %>%
-      add_sentistrength() %>%
-      add_liwc()
+      add_nwords()
   )
 }
 
@@ -158,6 +180,20 @@ divide_by_nwords <- function(d){
 }
 
 add_tidytext <- function(d){
+  d$tidytext_pos <- apply(cbind(
+    d$bing_pos,
+    d$afinn_pos,
+    d$loughran_pos,
+    d$nrc_pos
+  ), 1, mean, na.rm=T) # biggest possible mean 
+  
+  d$tidytext_neg <- apply(cbind(
+    d$bing_neg,
+    d$afinn_neg,
+    d$loughran_neg,
+    d$nrc_neg
+  ), 1, mean, na.rm=T) # biggest possible mean 
+  
   d$tidytext_scale <- apply(cbind(
       d$bing_scale,
       d$afinn_scale,
@@ -336,21 +372,33 @@ add_pairwise_disc <- function(d){
   return(d)
 }
 
-add_total_disc <- function(d){  # currently: add all available pairs (less disc for less coverage)
+add_total_disc <- function(d){  
   s_scales <- get_scales()
   
   combinations <- t(combn(s_scales, 2))
   
   the_sum <- rep(0, nrow(d))
+  n_combs <- rep(0, nrow(d))
   
   for (i in 1:nrow(combinations)){  
     temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2 %>% unlist() %>% as.numeric()
     the_sum[which(!is.na(temp))] <- the_sum[which(!is.na(temp))] + temp[which(!is.na(temp))]
+    n_combs[which(!is.na(temp))] <- n_combs[which(!is.na(temp))] + 1 # += 1 for available combination 
   } 
   
   the_sum[the_sum == 0] <- NA     # reassign NAs for possible 0 coverage
   d$total_discrepancy <- the_sum
   
+  d$total_discrepancy <- d$total_discrepancy / n_combs  # normalize by number of combinations
+  d$n_combs <- n_combs  # for later coverage statistics
+  
+  return(d)
+}
+
+add_ambiguity_measure <- function(d){   # for robustness check and later exploration
+  d$ss_ambi <- abs(d$ss_pos) + abs(d$ss_neg)
+  d$liwc_ambi <- abs(d$liwc_pos) + abs(d$liwc_neg)
+  d$tidytext_ambi <- abs(d$tidytext_pos) + abs(d$tidytext_neg)
   return(d)
 }
 
@@ -358,7 +406,8 @@ discrepancy_master <- function(d){
   return(
     d %>%
       add_pairwise_disc() %>%
-      add_total_disc()
+      add_total_disc() %>%
+      add_ambiguity_measure()
   )
 }
 
@@ -371,12 +420,92 @@ save_final_dataset <- function(d){
 
 ##### DESCRIPTIVES #####
 
+# to be continued...
+
+# Sample
+
+descriptives_sample <- function(d){
+  print("descriptives_sample")
+  print(nrow(d))
+  print(d$user_id %>% unique() %>% length())
+  print(sum(d$q == "#NGSSchat"))
+}
+
+# Dictionary coverage
+
+descriptives_coverage <- function(d){
+  print("descriptives_coverage")
+  print((d$bing_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d$afinn_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d$loughran_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d$nrc_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d$tidytext_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2)) # great coverage
+}
+
+# Ambiguity statistic and plausibility checks
+
+descriptives_ambiguity <- function(d){
+  print("descriptives_ambiguity")
+  print(d$ss_ambi %>% summary())
+  print(d$liwc_ambi %>% summary())
+  print(d$tidytext_ambi %>% summary())  # liwc and tidytext both have outliers, ss truncates
+  
+  print(cbind(d$ss_ambi, d$liwc_ambi, d$tidytext_ambi) %>% cor(use="pairwise.complete.obs")) # liwc again closer to dicts
+}
+
+# Sentiment scale correlations
+
+descriptives_scale_correlations <- function(d){
+  print("descriptives_scale_correlations")
+  print(cbind(d$ss_scale, d$liwc_scale, d$tidytext_scale) %>% cor(use="pairwise.complete.obs")) # scales closer than ambiguity
+}
+
+# Normality checks
+
+# Wordclouds for different scale values
+
+# Hand coding confusion matrices validation, compare to discrepancy and ambiguity checks
+
+# Discrepancy magnitude and order, which scales are closer together?
+
+descriptives_disc_pairs <- function(d){
+  print("descriptives_disc_pairs")
+  ind <- grep("discrepancy", names(d))
+  
+  mean_disc <- NULL
+  
+  for (i in ind){
+    mean_disc <- rbind(mean_disc, cbind(names(d)[i], d[,i] %>% unlist %>% mean(na.rm=T)))
+  }
+  
+  mean_disc[,2] <- mean_disc[,2] %>% as.numeric() %>% sqrt()  # to interpret as sd difference, test also leaving out ^2 to the direction of bias
+  mean_disc <- mean_disc[order(mean_disc[,2]),]
+
+  print(mean_disc)  # ss and liwc rather inconsistent, liwc closer to tidytext than ss, tidytext closest dict to ss+liwc
+}
+
 descriptives_master <- function(d){
-  return(0)
+  d %>%
+    descriptives_sample()
+  d %>%
+    descriptives_coverage()
+  d %>%
+    descriptives_ambiguity()
+  d %>%
+    descriptives_scale_correlations()
+  d %>%
+    descriptives_disc_pairs()
 }
 
 ##### ANALYSIS #####
 
 analysis_master <- function(d){   # just an example
+  print("analysis_master")
   print(cor.test(d$total_discrepancy, d$nwords))
+  print(cor.test(d$total_discrepancy, d$nchar))
+  print(cor.test(d$total_discrepancy, d$favorite_count))
+  print(cor.test(d$total_discrepancy, d$retweet_count))
+  print(cor.test(d$total_discrepancy, d$ss_ambi))
+  print(cor.test(d$total_discrepancy, d$liwc_ambi))
+  print(cor.test(d$total_discrepancy, d$tidytext_ambi))  # wow! we need to check cook's distance of these
 }
