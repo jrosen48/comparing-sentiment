@@ -420,28 +420,92 @@ save_final_dataset <- function(d){
 
 ##### DESCRIPTIVES #####
 
-descriptives_master <- function(d){
-  return(0)
-}
+# to be continued...
 
 # Sample
 
+descriptives_sample <- function(d){
+  print("descriptives_sample")
+  print(nrow(d))
+  print(d$user_id %>% unique() %>% length())
+  print(sum(d$q == "#NGSSchat"))
+}
+
 # Dictionary coverage
 
-# Which scales are closer together?
+descriptives_coverage <- function(d){
+  print("descriptives_coverage")
+  print((d$bing_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d$afinn_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d$loughran_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d$nrc_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d$tidytext_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2)) # great coverage
+}
 
-# Wordclouds for different scale values
+# Ambiguity statistic and plausibility checks
 
-# Is tidytext scale superior to single dictionary scales?
+descriptives_ambiguity <- function(d){
+  print("descriptives_ambiguity")
+  print(d$ss_ambi %>% summary())
+  print(d$liwc_ambi %>% summary())
+  print(d$tidytext_ambi %>% summary())  # liwc and tidytext both have outliers, ss truncates
+  
+  print(cbind(d$ss_ambi, d$liwc_ambi, d$tidytext_ambi) %>% cor(use="pairwise.complete.obs")) # liwc again closer to dicts
+}
 
-# Ambiguity statistics and checks
+# Sentiment scale correlations
+
+descriptives_scale_correlations <- function(d){
+  print("descriptives_scale_correlations")
+  print(cbind(d$ss_scale, d$liwc_scale, d$tidytext_scale) %>% cor(use="pairwise.complete.obs")) # scales closer than ambiguity
+}
 
 # Normality checks
 
-# Hand coding confusion matrices
+# Wordclouds for different scale values
+
+# Hand coding confusion matrices validation, compare to discrepancy and ambiguity checks
+
+# Discrepancy magnitude and order, which scales are closer together?
+
+descriptives_disc_pairs <- function(d){
+  print("descriptives_disc_pairs")
+  ind <- grep("discrepancy", names(d))
+  
+  mean_disc <- NULL
+  
+  for (i in ind){
+    mean_disc <- rbind(mean_disc, cbind(names(d)[i], d[,i] %>% unlist %>% mean(na.rm=T)))
+  }
+  
+  mean_disc[,2] <- mean_disc[,2] %>% as.numeric() %>% sqrt()  # to interpret as sd difference, test also leaving out ^2 to the direction of bias
+  mean_disc <- mean_disc[order(mean_disc[,2]),]
+
+  print(mean_disc)  # ss and liwc rather inconsistent, liwc closer to tidytext than ss, tidytext closest dict to ss+liwc
+}
+
+descriptives_master <- function(d){
+  d %>%
+    descriptives_sample()
+  d %>%
+    descriptives_coverage()
+  d %>%
+    descriptives_ambiguity()
+  d %>%
+    descriptives_scale_correlations()
+  d %>%
+    descriptives_disc_pairs()
+}
 
 ##### ANALYSIS #####
 
 analysis_master <- function(d){   # just an example
+  print("analysis_master")
   print(cor.test(d$total_discrepancy, d$nwords))
+  print(cor.test(d$total_discrepancy, d$nchar))
+  print(cor.test(d$total_discrepancy, d$favorite_count))
+  print(cor.test(d$total_discrepancy, d$retweet_count))
+  print(cor.test(d$total_discrepancy, d$ss_ambi))
+  print(cor.test(d$total_discrepancy, d$liwc_ambi))
+  print(cor.test(d$total_discrepancy, d$tidytext_ambi))  # wow! we need to check cook's distance of these
 }

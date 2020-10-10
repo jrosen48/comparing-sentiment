@@ -35,6 +35,8 @@ targets <- list(
   tar_target(final_data_file, data_discrepancy %>% save_final_dataset(), format = "file"),
   tar_target(final_data, readRDS(final_data_file)),
   
+  # RESULTS: optionally for different subsets (#NGSSchat, non-chat, ...)
+  
   tar_target(descriptives, final_data %>% descriptives_master()),
   tar_target(analysis, final_data %>% analysis_master())
   
