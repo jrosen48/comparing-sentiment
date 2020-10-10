@@ -355,20 +355,24 @@ add_pairwise_disc <- function(d){
   return(d)
 }
 
-add_total_disc <- function(d){  # currently: add all available pairs (less disc for less coverage)
+add_total_disc <- function(d){  
   s_scales <- get_scales()
   
   combinations <- t(combn(s_scales, 2))
   
   the_sum <- rep(0, nrow(d))
+  n_combs <- rep(0, nrow(d))
   
   for (i in 1:nrow(combinations)){  
     temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2 %>% unlist() %>% as.numeric()
     the_sum[which(!is.na(temp))] <- the_sum[which(!is.na(temp))] + temp[which(!is.na(temp))]
+    n_combs[which(!is.na(temp))] <- n_combs[which(!is.na(temp))] + 1 # += 1 for available combination 
   } 
   
   the_sum[the_sum == 0] <- NA     # reassign NAs for possible 0 coverage
   d$total_discrepancy <- the_sum
+  
+  d$total_discrepancy <- d$total_discrepancy / n_combs  # normalize by number of combinations 
   
   return(d)
 }
