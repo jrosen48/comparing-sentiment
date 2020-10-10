@@ -1,5 +1,3 @@
-#d <- tar_read(raw_data)
-
 ##### READING IN AND COMBINING RAW DATA FILES #####
 
 create_raw_data <- function(){
@@ -17,11 +15,47 @@ create_raw_data <- function(){
   return(here::here("data", "data_raw.rds"))
 }
 
+##### ADD EXTERNAL SENTIMENT DATA #####
+
+add_sentistrength <- function(d){
+  tar_load("ss_scale_data")
+  tar_load("ss_binary_data")
+  d$ss_pos <- ss_scale_data[,1]
+  d$ss_neg <- ss_scale_data[,2]
+  d$ss_scale <- d$ss_pos + d$ss_neg
+  d$ss_scale_scaled <- d$ss_scale %>% scale()
+  d$ss_binary <- ss_binary_data[,1]
+  return(d)
+}
+
+add_liwc <- function(d){
+  tar_load("liwc_data")
+  d$liwc_pos <- liwc_data$posemo
+  d$liwc_neg <- liwc_data$negemo
+  d$liwc_scale <- d$liwc_pos - d$liwc_neg
+  d$liwc_scale_scaled <- d$liwc_scale %>% scale()
+  d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
+  return(d)
+}
+
+add_external_master <- function(d){
+  return(
+    d %>%
+      add_sentistrength() %>%
+      add_liwc()
+  )
+}
+
 ##### Cleaning Data #####
 
 remove_variables <- function(d){
   return(
-    d %>% select(c("status_id", "user_id", "text", "created_at"))
+    d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
+                   "is_retweet", "is_quote", "reply_to_status_id", "reply_to_user_id",
+                   "favorite_count", "retweet_count", "quote_count", "reply_count", "lang", # tweet level
+                   "followers_count", "friends_count", "listed_count", "statuses_count", "favourites_count", # user level
+                   "ss_pos", "ss_neg", "ss_scale", "ss_scale_scaled", "ss_binary", # sentiment
+                   "liwc_pos", "liwc_neg", "liwc_scale", "liwc_scale_scaled", "liwc_binary"))
   )
 }
 
@@ -50,35 +84,11 @@ add_nwords <- function(d){
   return(d)
 }
 
-add_sentistrength <- function(d){
-  scale <- read.table(here::here("data-sentiment", "sentistrength_scale.txt"), 
-                      sep="\t", header = T, quote="")
-  d$ss_pos <- scale[,1]
-  d$ss_neg <- scale[,2]
-  d$ss_scale <- d$ss_pos + d$ss_neg
-  d$ss_scale_scaled <- d$ss_scale %>% scale()
-  d$ss_binary <- read.table(here::here("data-sentiment", "sentistrength_binary.txt")
-                            , sep="\t", header = T, quote="")[,1]
-  return(d)
-}
-
-add_liwc <- function(d){
-  liwc <- read.csv(here::here("data-sentiment", "liwc_results.csv"))
-  d$liwc_pos <- liwc$posemo
-  d$liwc_neg <- liwc$negemo
-  d$liwc_scale <- d$liwc_pos - d$liwc_neg
-  d$liwc_scale_scaled <- d$liwc_scale %>% scale()
-  d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
-  return(d)
-}
-
 add_vars_master <- function(d){
   return(
     d %>%
       add_nchar() %>%
-      add_nwords() %>%
-      add_sentistrength() %>%
-      add_liwc()
+      add_nwords()
   )
 }
 
