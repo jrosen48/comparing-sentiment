@@ -372,8 +372,16 @@ add_total_disc <- function(d){
   the_sum[the_sum == 0] <- NA     # reassign NAs for possible 0 coverage
   d$total_discrepancy <- the_sum
   
-  d$total_discrepancy <- d$total_discrepancy / n_combs  # normalize by number of combinations 
+  d$total_discrepancy <- d$total_discrepancy / n_combs  # normalize by number of combinations
+  d$n_combs <- n_combs  # for later coverage statistics
   
+  return(d)
+}
+
+add_ambiguity_measure <- function(d){   # for robustness check and later exploration
+  d$ss_ambi <- abs(d$ss_pos) + abs(d$ss_neg)
+  d$liwc_ambi <- abs(d$liwc_pos) + abs(d$liwc_neg)
+  d$tidytext_ambi <- abs(d$tidytext_pos) + abs(d$tidytext_neg)
   return(d)
 }
 
@@ -381,7 +389,8 @@ discrepancy_master <- function(d){
   return(
     d %>%
       add_pairwise_disc() %>%
-      add_total_disc()
+      add_total_disc() %>%
+      add_ambiguity_measure()
   )
 }
 
@@ -397,6 +406,18 @@ save_final_dataset <- function(d){
 descriptives_master <- function(d){
   return(0)
 }
+
+# Which scales are closer together?
+
+# Wordclouds for different scale values
+
+# Is tidytext scale superior to single dictionary scales?
+
+# Ambiguity statistics and checks
+
+# Normality checks
+
+# Hand coding confusion matrices
 
 ##### ANALYSIS #####
 
