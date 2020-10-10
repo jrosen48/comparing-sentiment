@@ -58,11 +58,14 @@ remove_variables <- function(d){
 
 preprocess_text <- function(d){
   d$text_clean <- d$text %>% 
-    gsub(pattern="https\\S*", replacement="") %>%  # urls
-    gsub(pattern="@\\S*", replacement="") %>%      # tagging
-    gsub(pattern="&amp", replacement="") %>%       # ampersand encoding
-    gsub(pattern="[\r\n]", replacement="") %>%     # line breaks
-    gsub(pattern="[[:punct:]]", replacement="")    # punctuation
+    gsub(pattern="https\\S*", replacement="") %>%   # urls
+    gsub(pattern="http\\S*", replacement="") %>%    # urls
+    gsub(pattern="@\\S*", replacement="") %>%       # tagging
+    gsub(pattern="&amp", replacement="") %>%        # ampersand encoding
+    gsub(pattern="[\r\n]", replacement="") %>%      # line breaks
+    gsub(pattern="[[:punct:]]", replacement="") %>% # punctuation, keep hashtags as words
+    gsub(pattern="\\s+", replacement=" ") %>%       # multiple white space to single space
+    base::trimws()                                  # remove white space at start and end of tweets
   return(d)
 }
 
@@ -177,6 +180,20 @@ divide_by_nwords <- function(d){
 }
 
 add_tidytext <- function(d){
+  d$tidytext_pos <- apply(cbind(
+    d$bing_pos,
+    d$afinn_pos,
+    d$loughran_pos,
+    d$nrc_pos
+  ), 1, mean, na.rm=T) # biggest possible mean 
+  
+  d$tidytext_neg <- apply(cbind(
+    d$bing_neg,
+    d$afinn_neg,
+    d$loughran_neg,
+    d$nrc_neg
+  ), 1, mean, na.rm=T) # biggest possible mean 
+  
   d$tidytext_scale <- apply(cbind(
       d$bing_scale,
       d$afinn_scale,
@@ -406,6 +423,10 @@ save_final_dataset <- function(d){
 descriptives_master <- function(d){
   return(0)
 }
+
+# Sample
+
+# Dictionary coverage
 
 # Which scales are closer together?
 
