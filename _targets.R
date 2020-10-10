@@ -1,9 +1,7 @@
-targets::tar_option_set(packages = c("here", "targets", "tidyverse", "tidytext", "lubridate"))
-
 source(here::here("R", "functions.R"))
 
 # Set target-specific options such as packages.
-tar_option_set(packages = c("here", "tidyverse"))
+targets::tar_option_set(packages = c("here", "targets", "tidyverse", "tidytext", "lubridate"))
 
 # Define targets
 targets <- list(
