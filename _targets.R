@@ -1,7 +1,4 @@
-library(targets)
-library(tidyverse)
-library(tidytext)
-library(lubridate)
+targets::tar_option_set(packages = c("here", "targets", "tidyverse", "tidytext", "lubridate"))
 
 source(here::here("R", "functions.R"))
 
