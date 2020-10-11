@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 library(targets)
 tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", "hash"))
 
@@ -6,7 +7,6 @@ tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", "hash"
 source(here::here("R", "functions.R"))
 
 # Set target-specific options such as packages.
-tar_option_set(packages = c("here", "tidyverse"))
 targets::tar_option_set(packages = c("here", "targets", "tidyverse", "tidytext", "lubridate"))
 
 # Define targets
