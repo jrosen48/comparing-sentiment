@@ -1,4 +1,5 @@
-targets::tar_option_set(packages = c("here", "targets", "tidyverse", "tidytext", "lubridate"))
+library(targets)
+tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", "hash"))
 
 source(here::here("R", "functions.R"))
 
@@ -14,12 +15,15 @@ targets <- list(
   tar_target(ss_scale_file, here::here("data-sentiment", "sentistrength_scale.txt"), format="file"),
   tar_target(ss_binary_file, here::here("data-sentiment", "sentistrength_binary.txt"), format="file"),
   tar_target(liwc_file, here::here("data-sentiment", "liwc_results.csv"), format="file"),
+  tar_target(teacher_classification_file, here::here("data-sentiment", "predictions.csv"), format="file"),
   
   tar_target(ss_scale_data, read.table(ss_scale_file, sep="\t", header = T, quote="")),
   tar_target(ss_binary_data, read.table(ss_binary_file, sep="\t", header = T, quote="")),
   tar_target(liwc_data, read.csv(liwc_file)),  
+  tar_target(teacher_classification_data, read.csv(teacher_classification_file)),  
   
-  tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, liwc_data)),
+  tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, liwc_data, 
+                                                    teacher_classification_data)),
   
   tar_target(clean_data_file, raw_with_external %>% clean_master(), format = "file"),
   tar_target(clean_data, readRDS(clean_data_file)),
