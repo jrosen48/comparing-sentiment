@@ -2,13 +2,16 @@
 
 create_raw_data <- function(){
   fns <- dir(here::here("data-raw"), pattern=".rda")
-  d <- NULL
+  i <- 1
+  object_list <- list()
   for (fn in fns){
     load(here::here("data-raw", fn))
     tweets_dl$dl_at <- file.info(here::here("data-raw", fn))$mtime
-    d <- rbind(d, tweets_dl)
-    cat("\014", round(which(fn == fns)/length(fns)*100, 0), "% files merged\n")
+    object_list[[i]] <- tweets_dl
+    i <- i+1
+    cat("\014", round(which(fn == fns)/length(fns)*100, 0), "% files read in\n")
   }
+  d <- do.call(rbind, object_list)
   d <- d[order(d$created_at),]
   d <- d[!duplicated(d$status_id),]
   saveRDS(d, here::here("data", "data_raw.rds"))
@@ -35,27 +38,11 @@ add_liwc <- function(d, liwc_data){
   return(d)
 }
 
-#add_teacher_classification <- function(d, teacher_classification_data){
-#  d$is_teacher <- teacher_classification_data[,1]
-#  # assign role at random for ambiguous classification due to changed profiles over time
-#  # seed automatically determined by targets
-#  dups <- d %>% 
-#            select(c("user_id", "is_teacher")) %>%
-#            unique() 
-#  dups <- dups[duplicated(dups$user_id),] 
-#  dups$is_teacher <- sample(0:1, nrow(dups), replace=T)
-#  h <- hash(dups$user_id, dups$is_teacher)
-#  d$is_teacher[d$user_id %in% keys(h)] <- sapply(d$user_id[d$user_id %in% keys(h)], 
-#                                                 FUN=function(k){h[k] %>% values() %>% as.numeric()})
-#  return(d)
-#}
-
-add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data){ #, teacher_classification_data){
+add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data){
   return(
     d %>%
       add_sentistrength(ss_scale_data=ss_scale_data, ss_binary_data=ss_binary_data) %>%
-      add_liwc(liwc_data=liwc_data) # %>%
-      # add_teacher_classification(teacher_classification_data=teacher_classification_data)
+      add_liwc(liwc_data=liwc_data) 
   )
 }
 
@@ -66,7 +53,6 @@ remove_variables <- function(d){
     d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
                    "is_retweet", "is_quote", "reply_to_status_id", "reply_to_user_id",
                    "favorite_count", "retweet_count", "quote_count", "reply_count", "lang", # tweet level
-                   #"is_teacher", 
                    "followers_count", "friends_count", "listed_count", # user level
                    "ss_pos", "ss_neg", "ss_scale", "ss_scale_scaled", "ss_binary", # sentistrength sentiment
                    "liwc_pos", "liwc_neg", "liwc_scale", "liwc_scale_scaled", "liwc_binary")) # liwc sentiment
@@ -523,21 +509,6 @@ ambiguity_context_by_method <- function(d){
   print(aggregate(tidytext_ambi ~ q, d, mean))
 }
 
-#discrepancy_role_by_method <- function(d){
-#  print("discrepancy_role_by_method")
-#  print(aggregate(total_discrepancy %>% unlist() ~ is_teacher, d, mean))
-#  print(aggregate(ss_liwc_discrepancy %>% unlist() ~ is_teacher, d, mean))
-#  print(aggregate(ss_tidytext_discrepancy %>% unlist() ~ is_teacher, d, mean))
-#  print(aggregate(liwc_tidytext_discrepancy %>% unlist() ~ is_teacher, d, mean))
-#}
-
-#ambiguity_role_by_method <- function(d){
-#  print("ambiguity_role_by_method")
-#  print(aggregate(ss_ambi ~ is_teacher, d, mean))
-#  print(aggregate(liwc_ambi ~ is_teacher, d, mean))
-#  print(aggregate(tidytext_ambi ~ is_teacher, d, mean))
-#}
-
 descriptives_master <- function(d){
   d %>%
     descriptives_sample()
@@ -553,10 +524,6 @@ descriptives_master <- function(d){
     discrepancy_context_by_method()
   d %>%
     ambiguity_context_by_method()
-  d %>%
-    discrepancy_role_by_method()
-  d %>%
-    ambiguity_role_by_method()
 }
 
 ##### ANALYSIS #####
