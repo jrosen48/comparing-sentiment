@@ -632,5 +632,12 @@ identify_threads <- function(d) {
     left_join(new_thread_df, by = "status_id") %>% 
     arrange(id_string)
   
+  out_df <- out_df %>% 
+    select(status_id, id_string)
+  
   out_df
+}
+
+join_id_string <- function(d, d_with_id) {
+  left_join(d, d_with_id, by = "status_id")
 }
