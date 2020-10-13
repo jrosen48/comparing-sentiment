@@ -13,8 +13,8 @@ targets <- list(
   tar_target(sample_of_tweets_for_thread_finding, read_rds(file_name_for_sample_of_tweets)),
   tar_target(extracted_status_ids, extract_status_ids(sample_of_tweets_for_thread_finding)),
   tar_target(replies_that_were_recursively_searched, get_replies_recursive(extracted_status_ids)),
-  tar_target(original_tweets_with_replies_added, bind_rows(sample_of_tweets_for_thread_finding, replies_that_were_recursively_searched)),
-  # tar_target(uniquely_identified_reply_threads, identify_threads(replies_that_were_recursively_searched)),
+  tar_target(uniquely_identified_reply_threads, identify_threads(replies_that_were_recursively_searched)), # JR is not sure this is working correctly
+  tar_target(original_tweets_with_replies_added, combine_original_with_reply_tweets(sample_of_tweets_for_thread_finding, replies_that_were_recursively_searched)),
   
   tar_target(raw_data_file, create_raw_data(), format = "file"),
   tar_target(raw_data, readRDS(raw_data_file)),

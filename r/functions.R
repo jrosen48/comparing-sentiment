@@ -163,6 +163,13 @@ add_nrc <- function(d, tt){
   return(d %>% left_join(res))
 }
 
+combine_original_with_reply_tweets <- function(orig, new) {
+  
+  bind_rows(orig, new) %>% 
+    distinct(status_id)
+  
+}
+
 divide_by_nwords <- function(d){
   d$bing_pos <- d$bing_pos / d$nwords
   d$bing_neg <- d$bing_neg / d$nwords
