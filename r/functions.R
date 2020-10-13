@@ -1,6 +1,6 @@
 ##### READING IN AND COMBINING RAW DATA FILES #####
 
-create_raw_data <- function(dir){
+create_raw_data <- function(){
   fns <- dir(here::here("data-raw"), pattern=".rda")
   d <- NULL
   for (fn in fns){
@@ -514,8 +514,16 @@ extract_status_ids <- function(d) {
   statuses <- d$status_url %>% str_split("/") %>% map_chr(~.[6])
 }
 
-get_replies_recursive <- function(statuses) {
+read_liwc_and_rename_input_cols <- function(path) {
+  d <- read_csv(path)
+  d <- d %>%
+    rename(status_id = A,
+           text = B)
+  d
+}
 
+get_replies_recursive <- function(statuses) {
+  
   statuses <- statuses[!is.na(statuses)]
   
   new_data <- rtweet::lookup_statuses(statuses)
