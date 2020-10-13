@@ -8,7 +8,12 @@ source(here::here("R", "functions.R"))
 # Define targets
 targets <- list(
   
-  # tar_target(file_name_for_sample_of_tweets, here::here("data-raw", "sample-of-tweets.rds"), format = "file"),
+  # for LIWC
+  tar_target(liwc_file, here::here("data-sentiment", "liwc-results.csv"), format = "file"),
+  tar_target(liwc_data, read_csv(liwc_file)),
+  
+  # for identifying threads
+  # tar_target(file_name_for_sample_of_tweets, here::here("data", "sample-of-tweets.rds"), format = "file"),
   # tar_target(sample_of_tweets_for_thread_finding, read_rds(file_name_for_sample_of_tweets)),
   # tar_target(extracted_status_ids, extract_status_ids(sample_of_tweets_for_thread_finding)),
   # tar_target(replies_that_were_recursively_searched, get_replies_recursive(extracted_status_ids)),
@@ -43,7 +48,7 @@ targets <- list(
 
   tar_target(descriptives, final_data %>% descriptives_master()),
   tar_target(analysis, final_data %>% analysis_master())
-  
+
 )
 
 # End with a call to tar_pipeline() to wrangle the targets together.
