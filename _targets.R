@@ -1,7 +1,7 @@
 library(targets)
 
 # Set target-specific options such as packages.
-targets::tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", "textdata"))
+targets::tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", "textdata", "hash"))
 
 source(here::here("R", "functions.R"))
 
