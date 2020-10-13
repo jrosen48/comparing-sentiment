@@ -77,9 +77,9 @@ remove_langs <- function(d){
 
 clean_master <- function(d){
   d <- d %>%
-       remove_variables() %>%
-       preprocess_text() %>%
-       remove_langs()
+    remove_variables() %>%
+    preprocess_text() %>%
+    remove_langs()
   saveRDS(d, here::here("data", "data_clean.rds"))
   return(here::here("data", "data_clean.rds"))
 }
@@ -107,11 +107,11 @@ add_vars_master <- function(d){
 ##### ADD TIDYTEXT VARIABLES ####
 
 create_tweet_tokens <- function(d){
- return(
+  return(
     d %>% 
       select("status_id", "text") %>% 
       unnest_tokens(word, text)
- )
+  )
 }
 
 add_bing <- function(d, tt){
@@ -195,10 +195,10 @@ add_tidytext <- function(d){
   ), 1, mean, na.rm=T) # biggest possible mean 
   
   d$tidytext_scale <- apply(cbind(
-      d$bing_scale,
-      d$afinn_scale,
-      d$loughran_scale,
-      d$nrc_scale
+    d$bing_scale,
+    d$afinn_scale,
+    d$loughran_scale,
+    d$nrc_scale
   ), 1, mean, na.rm=T) # biggest possible mean 
   return(d)
 }
@@ -252,11 +252,11 @@ add_q <- function(d){
 
 add_isChat <- function(d){
   d2 <- d[d$q == "#NGSSchat",] %>% 
-          select(c("status_id", "created_at", "text")) # subset #NGSSchat data
+    select(c("status_id", "created_at", "text")) # subset #NGSSchat data
   
   time <- d2$created_at
   time <- format(time, format="%Y-%m-%d %H")
-
+  
   freq <- table(time) 
   freq <- sort(freq, decreasing = T)
   freq <- freq %>% head(1000) 
@@ -266,9 +266,9 @@ add_isChat <- function(d){
   # Select tweets at the beginning of these 1,000 hours (+- 5 minutes around edge)
   
   hours <- hours %>%  # format to hour
-              sapply(paste, ":00:00 UTC", sep="") %>% 
-              as.character() %>% 
-              as.POSIXct(tz = "UTC")
+    sapply(paste, ":00:00 UTC", sep="") %>% 
+    as.character() %>% 
+    as.POSIXct(tz = "UTC")
   
   # Add minutes around edges of beginning of hours
   
@@ -282,7 +282,7 @@ add_isChat <- function(d){
   # Standardize tweet posting times to minutes in order to obtain tweets around beginning of must busy hours
   
   post_minutes <- d2$created_at %>%
-                     round_date(unit="1 minute")
+    round_date(unit="1 minute")
   
   possible_chat_openings <- d2[which(post_minutes %in% minutes),]
   
@@ -298,22 +298,22 @@ add_isChat <- function(d){
   # Sort out which specific hours are chats based on ind
   
   hours_with_opening_lines <- possible_chat_openings$created_at[ind] %>%
-                                  format(format="%Y-%m-%d %H") %>%
-                                  sapply(paste, ":00:00 UTC", sep="") %>%
-                                  as.character() %>%
-                                  as.POSIXct(tz = "UTC")
+    format(format="%Y-%m-%d %H") %>%
+    sapply(paste, ":00:00 UTC", sep="") %>%
+    as.character() %>%
+    as.POSIXct(tz = "UTC")
   
   chat_hours <- hours[which(hours %in% hours_with_opening_lines)]  # declare busiest hours with opening lines as chat hours
   
   # Create Variable "isChat", strict definition of chat as a 1 hour timeframe
   
   time <- d2$created_at %>%
-            format(format="%Y-%m-%d %H")
+    format(format="%Y-%m-%d %H")
   
   hours <- time %>% 
-            sapply(paste, ":00:00 UTC", sep="") %>%
-            as.character() %>%
-            as.POSIXct(tz = "UTC")
+    sapply(paste, ":00:00 UTC", sep="") %>%
+    as.character() %>%
+    as.POSIXct(tz = "UTC")
   
   ind <- which(hours %in% chat_hours)
   
@@ -321,7 +321,7 @@ add_isChat <- function(d){
   isChat[ind] <- 1  # 1 if tweets is in chat session
   
   d2$isChat <- isChat
-
+  
   # Knit back together with full data frame
   
   d$isChat <- rep(NA, nrow(d))
@@ -480,7 +480,7 @@ descriptives_disc_pairs <- function(d){
   
   mean_disc[,2] <- mean_disc[,2] %>% as.numeric() %>% sqrt()  # to interpret as sd difference, test also leaving out ^2 to the direction of bias
   mean_disc <- mean_disc[order(mean_disc[,2]),]
-
+  
   print(mean_disc)  # ss and liwc rather inconsistent, liwc closer to tidytext than ss, tidytext closest dict to ss+liwc
 }
 
@@ -510,19 +510,25 @@ analysis_master <- function(d){   # just an example
   print(cor.test(d$total_discrepancy, d$tidytext_ambi))  # wow! we need to check cook's distance of these
 }
 
+extract_status_ids <- function(d) {
+  statuses <- d$status_url %>% str_split("/") %>% map_chr(~.[6])
+}
+
 get_replies_recursive <- function(statuses) {
+
   statuses <- statuses[!is.na(statuses)]
+  
   new_data <- rtweet::lookup_statuses(statuses)
   
-  print(paste0("Accessed ", nrow(new_data), " new Tweets"))
+  print(paste0("In this iteration, accessed ", nrow(new_data), " new Tweets"))
   
   new_statuses <- new_data$reply_to_status_id[!is.na(new_data$reply_to_status_id)]
   
-  if (length(new_statuses) > 0) {
-    new_data_recursive <- get_replies_recursive(new_statuses)
-    out_data <- bind_rows(new_data, new_data_recursive)
-  } else {
-    return(new_data)
+  if (length(new_statuses) > 0) { # if there are replies to statuses not yet in the data
+    new_data_recursive <- get_replies_recursive(new_statuses) # get the tweets that were replied to
+    out_data <- bind_rows(new_data, new_data_recursive) # and bind together the replies and the original tweets
+  } else { # if there are no replies left to get
+    return(new_data) # return the replies
   }
 }
 
@@ -562,4 +568,54 @@ remove_short_threads <- function(thread, d, i) {
   } else {
     the_longest_thread
   }
+}
+
+identify_threads <- function(d) {
+  threads <- map(d$status_id, thread_finder, d = d)
+  
+  thread_list <- tibble(ID = 1:length(threads),
+                        thread = threads)
+  
+  thread_df <- thread_list %>% 
+    unnest(thread) %>% 
+    group_by(ID) %>% 
+    mutate(thread_string = toString(thread)) %>% 
+    select(ID, thread_string) %>% 
+    distinct(thread_string, .keep_all = TRUE) %>% 
+    ungroup() %>% 
+    mutate(row_number = 1:nrow(.))
+  
+  # not necessary in this case, but necessary in some - same n as before
+  thread_df <- thread_df %>% 
+    unique()
+  
+  # recursively searching for shorter version of longer threads
+  # 513 unique threads because some are shorter versions of longer ones
+  shorter_thread_list <- map2(.x = thread_df$thread_string, .f = remove_short_threads, d = thread_df, .y = 1:nrow(thread_df))
+  
+  # this creates a df with every status ID and what thread they're part of
+  new_thread_df <- tibble(ID = 1:length(shorter_thread_list),
+                          thread_string = map_chr(shorter_thread_list, ~.)) %>% 
+    select(-ID) %>% # this gets rid of our old ID
+    left_join(thread_df, by = "thread_string") %>% 
+    select(ID, thread_string) %>% # this uses the ID from our larger df
+    mutate(thread_string = str_split(thread_string, ", ")) %>% 
+    unnest(thread_string) %>% 
+    rename(status_id = thread_string) %>%
+    group_by(status_id) %>% 
+    summarize(id_string = toString(ID)) %>% 
+    mutate(id_string = str_split(id_string, ", ")) %>% 
+    unnest(id_string) %>% 
+    mutate(status_id = as.character(status_id)) %>% 
+    mutate(id_string = str_pad(id_string, 4, pad = "0")) %>% 
+    mutate(status_id = as.character(status_id)) %>% 
+    distinct() %>% 
+    arrange(id_string)
+  
+  # putting together the final dataset
+  out_df <- d %>% 
+    left_join(new_thread_df, by = "status_id") %>% 
+    arrange(id_string)
+  
+  out_df
 }
