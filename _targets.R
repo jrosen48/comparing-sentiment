@@ -8,7 +8,7 @@ source(here::here("R", "functions.R"))
 # Define targets
 targets <- list(
   
-  ## Commented out reply gathering
+  ## Commented out reply gathering, replies are now as .rda in /data-raw
   
   # for recursively adding tweets
   #tar_target(file_name_for_sample_of_tweets, here::here("data", "sample-of-tweets.rds"), format = "file"),
@@ -27,12 +27,14 @@ targets <- list(
   tar_target(ss_scale_file, here::here("data-sentiment", "sentistrength_scale.txt"), format="file"),
   tar_target(ss_binary_file, here::here("data-sentiment", "sentistrength_binary.txt"), format="file"),
   tar_target(liwc_file, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
+  tar_target(teacher_class_file, here::here("data-sentiment", "teacher_prediction.csv"), format="file"),
   
   tar_target(ss_scale_data, read.table(ss_scale_file, sep="\t", header = T, quote="")),
   tar_target(ss_binary_data, read.table(ss_binary_file, sep="\t", header = T, quote="")),
   tar_target(liwc_data, read_liwc_and_rename_input_cols(liwc_file)),
+  tar_target(teacher_class_data, read.csv(teacher_class_file) %>% rename(is_teacher=prediction_by_keywords)), 
   
-  tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, liwc_data)),
+  tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, liwc_data, teacher_class_data)),
 
   tar_target(clean_data_file, raw_with_external %>% clean_master(), format = "file"),
   tar_target(clean_data, readRDS(clean_data_file)),

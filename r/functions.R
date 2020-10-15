@@ -38,11 +38,17 @@ add_liwc <- function(d, liwc_data){
   return(d)
 }
 
-add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data){
+add_is_teacher <- function(d, teacher_class_data){
+  d$is_teacher <- teacher_class_data$is_teacher
+  return(d)
+}
+
+add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data, teacher_class_data){
   return(
     d %>%
       add_sentistrength(ss_scale_data=ss_scale_data, ss_binary_data=ss_binary_data) %>%
-      add_liwc(liwc_data=liwc_data) 
+      add_liwc(liwc_data=liwc_data)  %>%
+      add_is_teacher(teacher_class_data=teacher_class_data)
   )
 }
 
@@ -53,7 +59,7 @@ remove_variables <- function(d){
     d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
                    "is_retweet", "is_quote", "reply_to_status_id", "reply_to_user_id",
                    "favorite_count", "retweet_count", "quote_count", "reply_count", "lang", # tweet level
-                   "followers_count", "friends_count", "listed_count", # user level
+                   "followers_count", "friends_count", "listed_count", "is_teacher", # user level
                    "ss_pos", "ss_neg", "ss_scale", "ss_scale_scaled", "ss_binary", # sentistrength sentiment
                    "liwc_pos", "liwc_neg", "liwc_scale", "liwc_scale_scaled", "liwc_binary")) # liwc sentiment
   )
