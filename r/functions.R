@@ -24,6 +24,8 @@ add_sentistrength <- function(d, ss_scale_data, ss_binary_data){
   d$ss_pos <- ss_scale_data[,1]
   d$ss_neg <- ss_scale_data[,2]
   d$ss_scale <- d$ss_pos + d$ss_neg
+  d$ss_pos_scaled <- d$ss_pos %>% scale()
+  d$ss_neg_scaled <- d$ss_neg %>% scale()
   d$ss_scale_scaled <- d$ss_scale %>% scale()
   d$ss_binary <- ss_binary_data[,1]
   return(d)
@@ -33,13 +35,25 @@ add_liwc <- function(d, liwc_data){
   d$liwc_pos <- liwc_data$posemo
   d$liwc_neg <- liwc_data$negemo
   d$liwc_scale <- d$liwc_pos - d$liwc_neg
+  d$liwc_pos_scaled <- d$liwc_pos %>% scale()
+  d$liwc_neg_scaled <- d$liwc_neg %>% scale()  
   d$liwc_scale_scaled <- d$liwc_scale %>% scale()
   d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
   return(d)
 }
 
 add_is_teacher <- function(d, teacher_class_data){
-  d$is_teacher <- teacher_class_data$is_teacher
+  d$is_teacher <- teacher_class_data[,1]
+  # assign role at random for ambiguous classification due to changed profiles over time
+  # seed automatically determined by targets
+  dups <- d %>% 
+    select(c("user_id", "is_teacher")) %>%
+    unique() 
+  dups <- dups[duplicated(dups$user_id),] 
+  dups$is_teacher <- sample(0:1, nrow(dups), replace=T)
+  h <- hash(dups$user_id, dups$is_teacher)
+  d$is_teacher[d$user_id %in% keys(h)] <- sapply(d$user_id[d$user_id %in% keys(h)], 
+                                                 FUN=function(k){h[k] %>% values() %>% as.numeric()})
   return(d)
 }
 
@@ -60,8 +74,8 @@ remove_variables <- function(d){
                    "is_retweet", "is_quote", "reply_to_status_id", "reply_to_user_id",
                    "favorite_count", "retweet_count", "quote_count", "reply_count", "lang", # tweet level
                    "followers_count", "friends_count", "listed_count", "is_teacher", # user level
-                   "ss_pos", "ss_neg", "ss_scale", "ss_scale_scaled", "ss_binary", # sentistrength sentiment
-                   "liwc_pos", "liwc_neg", "liwc_scale", "liwc_scale_scaled", "liwc_binary")) # liwc sentiment
+                   "ss_pos", "ss_pos_scaled", "ss_neg", "ss_neg_scaled", "ss_scale", "ss_scale_scaled", "ss_binary", # sentistrength sentiment
+                   "liwc_pos", "liwc_pos_scaled", "liwc_neg", "liwc_neg_scaled", "liwc_scale", "liwc_scale_scaled", "liwc_binary")) # liwc sentiment
   )
 }
 
@@ -229,10 +243,20 @@ create_tidytext_binaries <- function(d){  # for validation of hand-coding
 }
 
 scale_tidytext_scales <- function(d){
+  d$bing_pos_scaled <- scale(d$bing_pos)
+  d$bing_neg_scaled <- scale(d$bing_neg)
   d$bing_scale_scaled <- scale(d$bing_scale)
+  d$afinn_pos_scaled <- scale(d$afinn_pos)
+  d$afinn_neg_scaled <- scale(d$afinn_neg)
   d$afinn_scale_scaled <- scale(d$afinn_scale)
+  d$loughran_pos_scaled <- scale(d$loughran_pos)
+  d$loughran_neg_scaled <- scale(d$loughran_neg)
   d$loughran_scale_scaled <- scale(d$loughran_scale)
+  d$nrc_pos_scaled <- scale(d$nrc_pos)
+  d$nrc_neg_scaled <- scale(d$nrc_neg)
   d$nrc_scale_scaled <- scale(d$nrc_scale)
+  d$tidytext_pos_scaled <- scale(d$tidytext_pos)
+  d$tidytext_neg_scaled <- scale(d$tidytext_neg)
   d$tidytext_scale_scaled <- scale(d$tidytext_scale)
   return(d)
 }
@@ -357,30 +381,30 @@ context_master <- function(d){
 
 ##### DISCREPANCY VARIABLES #####
 
-get_scales <- function(){
-  return(
-    c(
-      "ss_scale_scaled",
-      "liwc_scale_scaled",
-      "bing_scale_scaled",
-      "afinn_scale_scaled",
-      "loughran_scale_scaled",
-      "nrc_scale_scaled",
-      "tidytext_scale_scaled"
-    )
+get_scales <- function(scale = "scale", scaled = TRUE){
+  out <- c(
+    "ss",
+    "liwc",
+    "tidytext"
   )
+  if (scale == "pos") {out <- paste0(out, "_pos")}
+  else if (scale == "neg") {out <- paste0(out, "_neg")}
+  else {out <- paste0(out, "_scale")}
+  if (scaled) {out <- paste0(out, "_scaled")}
+  return(out)
 }
 
-add_pairwise_disc <- function(d){
-  s_scales <- get_scales()
+add_pairwise_disc <- function(d, scale = "scale", scaled = TRUE){
   
-  combinations <- t(combn(s_scales, 2))
+  scales <- get_scales(scale, scaled)
+  
+  combinations <- t(combn(scales, 2))
   
   for (i in 1:nrow(combinations)){  # iterate through each combination and build squared diff
     name <- paste(
       combinations[i, 1] %>% strsplit("_") %>% unlist() %>% head(1),
       combinations[i, 2] %>% strsplit("_") %>% unlist() %>% head(1), 
-      "discrepancy", sep="_"
+      "discrepancy", scale, sep="_"
     )
     d$temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2
     names(d)[names(d) == "temp"] <- name
@@ -388,10 +412,11 @@ add_pairwise_disc <- function(d){
   return(d)
 }
 
-add_total_disc <- function(d){  
-  s_scales <- get_scales()
+add_total_disc <- function(d, scale = "scale", scaled = TRUE){  
   
-  combinations <- t(combn(s_scales, 2))
+  scales <- get_scales(scale, scaled)
+  
+  combinations <- t(combn(scales, 2))
   
   the_sum <- rep(0, nrow(d))
   n_combs <- rep(0, nrow(d))
@@ -402,11 +427,24 @@ add_total_disc <- function(d){
     n_combs[which(!is.na(temp))] <- n_combs[which(!is.na(temp))] + 1 # += 1 for available combination 
   } 
   
-  the_sum[the_sum == 0] <- NA     # reassign NAs for possible 0 coverage
-  d$total_discrepancy <- the_sum
+  name <- paste(
+    "total", "discrepancy", scale, sep="_"
+  )
   
-  d$total_discrepancy <- d$total_discrepancy / n_combs  # normalize by number of combinations
-  d$n_combs <- n_combs  # for later coverage statistics
+  the_sum[the_sum == 0] <- NA     # reassign NAs for possible 0 coverage
+  
+  d$temp <- the_sum
+  d$temp <- d$temp / n_combs  # normalize by number of combinations
+  
+  names(d)[names(d) == "temp"] <- name
+  
+  name <- paste(
+    "n", "combinations", scale, sep="_"
+  )
+  
+  d$temp <- n_combs  # for later coverage statistics
+  
+  names(d)[names(d) == "temp"] <- name
   
   return(d)
 }
@@ -421,8 +459,12 @@ add_ambiguity_measure <- function(d){   # for robustness check and later explora
 discrepancy_master <- function(d){
   return(
     d %>%
-      add_pairwise_disc() %>%
-      add_total_disc() %>%
+      add_pairwise_disc(scale = "pos", scaled = TRUE) %>%
+      add_total_disc(scale = "pos", scaled = TRUE) %>%
+      add_pairwise_disc(scale = "neg", scaled = TRUE) %>%
+      add_total_disc(scale = "neg", scaled = TRUE) %>%
+      add_pairwise_disc(scale = "scale", scaled = TRUE) %>%
+      add_total_disc(scale = "scale", scaled = TRUE) %>%
       add_ambiguity_measure()
   )
 }
@@ -484,9 +526,10 @@ descriptives_scale_correlations <- function(d){
 
 # Discrepancy magnitude and order, which scales are closer together?
 
-descriptives_disc_pairs <- function(d){
+descriptives_disc_pairs <- function(d, variable_string){
   print("descriptives_disc_pairs")
-  ind <- grep("discrepancy", names(d))
+  print(variable_string)
+  ind <- grep(variable_string, names(d))
   
   mean_disc <- NULL
   
@@ -494,7 +537,9 @@ descriptives_disc_pairs <- function(d){
     mean_disc <- rbind(mean_disc, cbind(names(d)[i], d[,i] %>% unlist %>% mean(na.rm=T)))
   }
   
-  mean_disc[,2] <- mean_disc[,2] %>% as.numeric() %>% sqrt()  # to interpret as sd difference, test also leaving out ^2 to the direction of bias
+  mean_disc[,2] <- mean_disc[,2] %>% as.numeric() %>%
+                                        # sqrt()  %>% # to interpret as sd difference, test also leaving out ^2 to the direction of bias
+                                        round(2)
   mean_disc <- mean_disc[order(mean_disc[,2]),]
   
   print(mean_disc)  # ss and liwc rather inconsistent, liwc closer to tidytext than ss, tidytext closest dict to ss+liwc
