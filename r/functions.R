@@ -483,20 +483,32 @@ save_final_dataset <- function(d){
 # Sample
 
 descriptives_sample <- function(d){
-  print("descriptives_sample")
+  print("descriptives_sample, data cleaned for English lang")
+  print("Number of unique tweets:")
   print(nrow(d))
+  print("Number of unique users:")
   print(d$user_id %>% unique() %>% length())
+  print("Number of unique tweets with #NGSSchat:")
   print(sum(d$q == "#NGSSchat"))
+  print("Number of unique tweets with ngss:")
+  print(sum(d$q == "ngss"))
+  print("Number of unique tweets with other search terms:")
+  print(sum(d$q == "other"))
 }
 
 # Dictionary coverage
 
 descriptives_coverage <- function(d){
   print("descriptives_coverage")
+  print("bing")
   print((d$bing_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print("afinn")
   print((d$afinn_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print("loughran")
   print((d$loughran_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print("nrc")
   print((d$nrc_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print("tidytext_scale")
   print((d$tidytext_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2)) # great coverage
 }
 
@@ -507,16 +519,25 @@ descriptives_ambiguity <- function(d){
   print(d$ss_ambi %>% summary())
   print(d$liwc_ambi %>% summary())
   print(d$tidytext_ambi %>% summary())  # liwc and tidytext both have outliers, ss truncates
-  
-  print(cbind(d$ss_ambi, d$liwc_ambi, d$tidytext_ambi) %>% cor(use="pairwise.complete.obs")) # liwc again closer to dicts
+  print(cbind(d$ss_ambi, d$liwc_ambi, d$tidytext_ambi) %>% cor(use="pairwise.complete.obs") %>%
+          `colnames<-`(c("ss", "liwc", "tt")) %>% `rownames<-`(c("ss", "liwc", "tt"))) 
 }
 
 # Sentiment scale correlations
 
-descriptives_scale_correlations <- function(d){
+descriptives_scale_correlations <- function(d){   # side-note: does not change when variables are scaled
   print("descriptives_scale_correlations")
-  print(cbind(d$ss_scale, d$liwc_scale, d$tidytext_scale) %>% cor(use="pairwise.complete.obs")) # scales closer than ambiguity
+  print("pos")
+  print(cbind(d$ss_pos, d$liwc_pos, d$tidytext_pos) %>% cor(use="pairwise.complete.obs" )%>%
+          `colnames<-`(c("ss", "liwc", "tt")) %>% `rownames<-`(c("ss", "liwc", "tt")) %>% round(2)) 
+  print("neg")
+  print(cbind(d$ss_neg, d$liwc_neg, d$tidytext_neg) %>% cor(use="pairwise.complete.obs" )%>%
+          `colnames<-`(c("ss", "liwc", "tt")) %>% `rownames<-`(c("ss", "liwc", "tt")) %>% round(2)) 
+  print("scale")
+  print(cbind(d$ss_scale, d$liwc_scale, d$tidytext_scale) %>% cor(use="pairwise.complete.obs" )%>%
+          `colnames<-`(c("ss", "liwc", "tt")) %>% `rownames<-`(c("ss", "liwc", "tt")) %>% round(2)) 
 }
+
 
 # Normality checks
 
@@ -547,10 +568,21 @@ descriptives_disc_pairs <- function(d, variable_string){
 
 discrepancy_context_by_method <- function(d){
   print("discrepancy_context_by_method")
-  print(aggregate(total_discrepancy %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_liwc_discrepancy %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_tidytext_discrepancy %>% unlist() ~ q, d, mean))
-  print(aggregate(liwc_tidytext_discrepancy %>% unlist() ~ q, d, mean))
+  print("pos")
+  print(aggregate(total_discrepancy_pos %>% unlist() ~ q, d, mean))
+  print(aggregate(ss_liwc_discrepancy_pos %>% unlist() ~ q, d, mean))
+  print(aggregate(ss_tidytext_discrepancy_pos %>% unlist() ~ q, d, mean))
+  print(aggregate(liwc_tidytext_discrepancy_pos %>% unlist() ~ q, d, mean))
+  print("neg")
+  print(aggregate(total_discrepancy_neg %>% unlist() ~ q, d, mean))
+  print(aggregate(ss_liwc_discrepancy_neg %>% unlist() ~ q, d, mean))
+  print(aggregate(ss_tidytext_discrepancy_neg %>% unlist() ~ q, d, mean))
+  print(aggregate(liwc_tidytext_discrepancy_neg %>% unlist() ~ q, d, mean))
+  print("scale")
+  print(aggregate(total_discrepancy_scale %>% unlist() ~ q, d, mean))
+  print(aggregate(ss_liwc_discrepancy_scale %>% unlist() ~ q, d, mean))
+  print(aggregate(ss_tidytext_discrepancy_scale %>% unlist() ~ q, d, mean))
+  print(aggregate(liwc_tidytext_discrepancy_scale %>% unlist() ~ q, d, mean))
 }
 
 ambiguity_context_by_method <- function(d){
@@ -560,7 +592,7 @@ ambiguity_context_by_method <- function(d){
   print(aggregate(tidytext_ambi ~ q, d, mean))
 }
 
-descriptives_master <- function(d){
+descriptives_master <- function(d){  # note: add skimr::skim() and normality checks
   d %>%
     descriptives_sample()
   d %>%
@@ -570,7 +602,11 @@ descriptives_master <- function(d){
   d %>%
     descriptives_scale_correlations()
   d %>%
-    descriptives_disc_pairs()
+    descriptives_disc_pairs(variable_string="discrepancy_pos")
+  d %>%
+    descriptives_disc_pairs(variable_string="discrepancy_neg")
+  d %>%
+    descriptives_disc_pairs(variable_string="discrepancy_scale")
   d %>%
     discrepancy_context_by_method()
   d %>%
@@ -580,15 +616,60 @@ descriptives_master <- function(d){
 ##### ANALYSIS #####
 
 analysis_master <- function(d){   # just an example
-  print("analysis_master")
-  print(cor.test(d$total_discrepancy, d$nwords))
-  print(cor.test(d$total_discrepancy, d$nchar))
-  print(cor.test(d$total_discrepancy, d$favorite_count))
-  print(cor.test(d$total_discrepancy, d$retweet_count))
-  print(cor.test(d$total_discrepancy, d$ss_ambi))
-  print(cor.test(d$total_discrepancy, d$liwc_ambi))
-  print(cor.test(d$total_discrepancy, d$tidytext_ambi))  # wow! we need to check cook's distance of these
+  d %>%
+    cor_testing()
+  #d %>%
+   # modeling()  evaluate best with targets::tar_load("final_data") | d <- final_data
 }
+
+cor_testing <- function(d){
+  print("testing correlations")
+  print("pos")
+  print(cor.test(d$total_discrepancy_pos, d$nwords))
+  print(cor.test(d$total_discrepancy_pos, d$nchar))
+  print(cor.test(d$total_discrepancy_pos, d$favorite_count))
+  print(cor.test(d$total_discrepancy_pos, d$retweet_count))
+  print(cor.test(d$total_discrepancy_pos, d$ss_ambi))
+  print(cor.test(d$total_discrepancy_pos, d$liwc_ambi))
+  print(cor.test(d$total_discrepancy_pos, d$tidytext_ambi))  # wow! we need to check cook's distance of these
+  print("neg")
+  print(cor.test(d$total_discrepancy_neg, d$nwords))
+  print(cor.test(d$total_discrepancy_neg, d$nchar))
+  print(cor.test(d$total_discrepancy_neg, d$favorite_count))
+  print(cor.test(d$total_discrepancy_neg, d$retweet_count))
+  print(cor.test(d$total_discrepancy_neg, d$ss_ambi))
+  print(cor.test(d$total_discrepancy_neg, d$liwc_ambi))
+  print(cor.test(d$total_discrepancy_neg, d$tidytext_ambi))  # wow! we need to check cook's distance of these
+  print("scale")
+  print(cor.test(d$total_discrepancy_scale, d$nwords))
+  print(cor.test(d$total_discrepancy_scale, d$nchar))
+  print(cor.test(d$total_discrepancy_scale, d$favorite_count))
+  print(cor.test(d$total_discrepancy_scale, d$retweet_count))
+  print(cor.test(d$total_discrepancy_scale, d$ss_ambi))
+  print(cor.test(d$total_discrepancy_scale, d$liwc_ambi))
+  print(cor.test(d$total_discrepancy_scale, d$tidytext_ambi))  # wow! we need to check cook's distance of these
+}
+
+modeling <- function(d){
+  d$isChat[is.na(d$isChat)] <- 0
+  m <- lm(total_discrepancy_pos ~ 
+            nchar + nwords + isChat + is_teacher + q + 
+            ss_ambi + liwc_ambi + tidytext_ambi + 
+            favorite_count + retweet_count, d)
+  tab_model(m, show.icc = TRUE)
+  m <- lm(total_discrepancy_neg ~ 
+            nchar + nwords + isChat + is_teacher + q + 
+            ss_ambi + liwc_ambi + tidytext_ambi + 
+            favorite_count + retweet_count, d)
+  tab_model(m, show.icc = TRUE)
+  m <- lm(total_discrepancy_scale ~ 
+            nchar + nwords + isChat + is_teacher + q + 
+            ss_ambi + liwc_ambi + tidytext_ambi + 
+            favorite_count + retweet_count, d)
+  tab_model(m, show.icc = TRUE)
+}
+
+##### JOSH FUNCTIONS ######
 
 extract_status_ids <- function(d) {
   statuses <- d$status_url %>% str_split("/") %>% map_chr(~.[6])
