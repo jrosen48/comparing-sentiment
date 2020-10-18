@@ -45,12 +45,12 @@ targets <- list(
   tar_target(data_discrepancy, data_context %>% discrepancy_master()),
 
   tar_target(final_data_file, data_discrepancy %>% save_final_dataset(), format = "file"),
-  tar_target(final_data, readRDS(final_data_file)),
+  tar_target(final_data, readRDS(final_data_file))#,
 
-  # RESULTS: optionally for different subsets (#NGSSchat, non-chat, ...) # JR comment: unclear what this meansgit
+  # Descriptives and results in seperate Rmd Files in root folder for now
 
-  tar_target(descriptives, final_data %>% descriptives_master()),
-  tar_target(analysis, final_data %>% analysis_master())
+  #tar_target(descriptives, final_data %>% descriptives_master()),
+  #tar_target(analysis, final_data %>% analysis_master())
 
 )
 

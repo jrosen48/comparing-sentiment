@@ -1,0 +1,75 @@
+---
+title: "Descriptives"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading final data set from Targets cache
+
+```{r loading data}
+targets::tar_load("final_data")
+d <- final_data
+rm(final_data)
+```
+
+## Variables used in the analysis
+
+### Tweet level
+
+* status_id
+* user_id
+* created_at
+* dl_at: time of download of tweet in UTC time
+* text: text as returned by the Twitter API
+* text_clean: text without links, tags, line breaks, punctuation, "&amp" encoding and redundant white space
+* is_retweet
+* is_quote
+* favorite_count
+* retweet_count
+* quote_count
+* reply_count
+* lang: only languages that were recognized as English by Twitter's AI were included in final data set
+* nchar: number of character of text_clean
+* nwords: number of word of text_clean
+
+### User level
+
+* followers_count: number of followers of user at time of download (dl_at)
+* friends_count: number of followed users of user at time of download (dl_at)
+* listed_count: number of affiliated lists of user at time of download (dl_at)
+* is_teacher: 1 if user was classified as teacher by our ML model by his bio at time of download (dl_at) with ambiguous classifications over time randomized and standardized across measurement points
+
+### Context variables
+
+* isChat: 1 if tweet was posted inside of #NGSSchat chat session, 0 if not, NA if tweet does not include #NGSSchat
+* q: variable with the levels "#NGSSchat", "ngss" and "other" representing if the tweet includes #NGSSchat, the term ngss (and not #NGSSchat) or any other NGSS-related search term (and not the two aformentioned terms)
+
+### Sentiment variables (by class; featuring SentiStrength, LIWC, Tidytext)
+
+* {method}_pos: Positivity rating of tweet. Standardized by number of words for Tidytext rating and truncated to 4 for SentiStrength rating.
+* {method}_neg: Negativity rating of tweet. Standardized by number of words for Tidytext rating and truncated to 4 for SentiStrength rating.
+* {method}_scale: Positivity + Negativity rating (if negativity score is { 0, else minus)
+* {method}_{pos/neg/scale}_scaled: base::scale() applied to individiual ratings
+* {method}_binary: Binary (pos/neg) rating of tweets by method for validation. SentiStrength's binary method was employed and for LIWC and Tidytext, a positive classification was assigned if the respective scale was }= 0.
+
+* {method}_ambi: Ambiguity control measure defined as the sum of the absolute differences from 0 for each method's positivity and negativity ratings
+
+* {method}_{method}_discrepancy_{pos/neg/scale}: Squared difference between base::scaled() ratings (positivity, negativity, scale) for all three pairs of methods. NaN if no comparison was possible due to NAs
+* total_discrepancy_{pos/neg/scale}: Sum of pair-wise discrepancies for all three ratings (positivity, negativity, scale), dividied by the number of available comparisons.
+* n_combinations_{pos/neg/scale}: Number of available comparisons for total_discrepancy_{pos/neg/scale} for later reference
+
+
+
+
+```{r pressure, echo=FALSE}
+#plot(pressure)
+```
+
+
