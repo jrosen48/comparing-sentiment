@@ -73,3 +73,14 @@ m <- lm(total_discrepancy_scale %>% log ~
           favorite_count + retweet_count, d)
 tab_model(m, show.icc = TRUE)
 ```
+
+## Optized model, discrepancy and ambiguity most normally distributed when log transformed, other predictors correlate best when nothing is transformed
+
+```{r modeling scale optimized}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_scale ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi %>% exp + liwc_ambi %>% exp + tidytext_ambi %>% exp + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```

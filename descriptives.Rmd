@@ -293,6 +293,51 @@ d %>% select(
   knitr::kable(digits = 2)
 ```
 
+## Ambiguity normality check and transformation
+
+### Tidytext
+
+```{r}
+d %>% 
+  ggplot(aes(x = tidytext_ambi)) +
+  geom_histogram(bins=100)
+```
+Log
+```{r}
+d %>% 
+  ggplot(aes(x = tidytext_ambi %>% log)) +
+  geom_histogram(bins=250)
+```
+Most normally distributed when log() applied
+```{r}
+d %>% 
+  ggplot(aes(x = tidytext_ambi %>% sqrt)) +
+  geom_histogram(bins=150)
+```
+### SentiStrength
+
+Always homomorphic, decreases left to right
+```{r}
+d %>% 
+  ggplot(aes(x = ss_ambi %>% sqrt)) +
+  geom_histogram()
+```
+
+### LIWC
+
+Log
+```{r}
+d %>% 
+  ggplot(aes(x = liwc_ambi %>% log)) +
+  geom_histogram()
+```
+Sqrt
+```{r}
+d %>% 
+  ggplot(aes(x = liwc_ambi %>% sqrt)) +
+  geom_histogram()
+```
+
 ## Discrepancy normality check and transformation
 
 ### Overall
