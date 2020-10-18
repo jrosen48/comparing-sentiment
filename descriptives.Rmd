@@ -9,6 +9,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 ```
 
 ## Loading final data set from Targets cache
@@ -63,13 +64,219 @@ rm(final_data)
 
 * {method}_{method}_discrepancy_{pos/neg/scale}: Squared difference between base::scaled() ratings (positivity, negativity, scale) for all three pairs of methods. NaN if no comparison was possible due to NAs
 * total_discrepancy_{pos/neg/scale}: Sum of pair-wise discrepancies for all three ratings (positivity, negativity, scale), dividied by the number of available comparisons.
-* n_combinations_{pos/neg/scale}: Number of available comparisons for total_discrepancy_{pos/neg/scale} for later reference
+* n_combinations_{pos/neg/scale}: Number of available comparisons for total_discrepancy_{pos/neg/scale} for later reference. Currently this index is equally large for pos/neg/scale alike, as 0s were assigned in tidytext dictionary approaches when at least one match (positive or negative) was found. CB: We might want to re-discuss this, it seems to alter results quite a bit.
 
+## Sample and a glimspe at the variables
 
-
-
-```{r pressure, echo=FALSE}
-#plot(pressure)
+```{r sample}
+d$is_teacher <- as.factor(d$is_teacher)
+d$ss_binary <- as.factor(d$ss_binary)
+d$liwc_binary <- as.factor(d$liwc_binary)
+d$tidytext_binary <- as.factor(d$tidytext_binary)
+d$n_combinations_scale <- as.factor(d$n_combinations_scale)
+d %>% 
+  select(status_id, user_id,
+         created_at, dl_at,
+         favorite_count, retweet_count,
+         followers_count, friends_count,
+         nchar, nwords,
+         is_teacher, isChat, q,
+         ss_binary, liwc_binary, tidytext_binary,
+         ss_pos_scaled, ss_neg_scaled, ss_scale_scaled,
+         liwc_pos_scaled, liwc_neg_scaled, liwc_scale_scaled,
+         tidytext_pos_scaled, tidytext_neg_scaled, tidytext_scale_scaled,
+         ss_ambi, liwc_ambi, tidytext_ambi,
+         total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale,
+         n_combinations_scale
+         ) %>% 
+  skimr::skim()
 ```
 
+## Correlations pos scales
 
+```{r correlations scales pos}
+d %>% 
+  select(
+         ss_pos_scaled, liwc_pos_scaled, tidytext_pos_scaled
+         ) %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  corrr::fashion() %>%
+  knitr::kable()
+```
+
+## Correlations neg scales
+
+```{r correlations scales neg}
+d %>% 
+  select(
+         ss_neg_scaled, liwc_neg_scaled, tidytext_neg_scaled
+         ) %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  corrr::fashion() %>%
+  knitr::kable()
+```
+
+## Correlations overall scales
+
+```{r correlations scales overall}
+d %>% 
+  select(
+         ss_scale_scaled, liwc_scale_scaled, tidytext_scale_scaled
+         ) %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  corrr::fashion() %>%
+  knitr::kable()
+```
+
+## Correlations ambiguity measures
+
+```{r correlations ambiguity measures}
+d %>% 
+  select(
+         ss_ambi, liwc_ambi, tidytext_ambi
+         ) %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  corrr::fashion() %>%
+  knitr::kable()
+```
+
+## Correlations discrepancy 
+
+```{r correlations discrepancy}
+d %>% 
+  select(nchar, nwords,
+         favorite_count, followers_count,
+         ss_ambi, liwc_ambi, tidytext_ambi, 
+         total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale
+         ) %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  select(rowname, total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale) %>%
+  corrr::fashion() %>%
+  knitr::kable()
+```
+
+## Individual tidytext dictionary coverage
+
+```{r dictionary coverage, echo=FALSE}
+  print("descriptives_coverage")
+  print("bing")
+  print((d$bing_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print("afinn")
+  print((d$afinn_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print("loughran")
+  print((d$loughran_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print("nrc")
+  print((d$nrc_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print("tidytext_scale")
+  print((d$tidytext_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2)) 
+```
+
+## Pair-wise discrepancies
+
+```{r pair-wise discrepancies pos}
+d %>% select(
+  "ss_liwc_discrepancy_pos",
+  "ss_tidytext_discrepancy_pos",
+  "liwc_tidytext_discrepancy_pos",
+  "ss_liwc_discrepancy_neg",
+  "ss_tidytext_discrepancy_neg",
+  "liwc_tidytext_discrepancy_neg",
+  "ss_liwc_discrepancy_scale",
+  "ss_tidytext_discrepancy_scale",
+  "liwc_tidytext_discrepancy_scale",
+  "total_discrepancy_pos",
+  "total_discrepancy_neg",
+  "total_discrepancy_scale"
+  ) %>%
+  colMeans(na.rm=T) %>%
+  knitr::kable(digits = 2, col.names = "mean")
+```
+
+## Discrepancy by context
+
+```{r discrepancy by context}
+d %>% select(
+  "total_discrepancy_pos",
+  "total_discrepancy_neg",
+  "total_discrepancy_scale",
+  "q",
+  ) %>% 
+  group_by(q) %>%
+  summarise_all(mean) %>%
+  knitr::kable(digits = 2)
+```
+
+## Discrepancy by teacher, non-teacher
+
+```{r discrepancy by teacher non-teacher}
+d %>% select(
+  "total_discrepancy_pos",
+  "total_discrepancy_neg",
+  "total_discrepancy_scale",
+  "is_teacher",
+  ) %>% 
+  group_by(is_teacher) %>%
+  summarise_all(mean) %>%
+  knitr::kable(digits = 2)
+```
+
+## Discrepancy by isChat
+
+```{r discrepancy by isChat}
+d %>% select(
+  "total_discrepancy_pos",
+  "total_discrepancy_neg",
+  "total_discrepancy_scale",
+  "isChat",
+  ) %>% 
+  group_by(isChat) %>%
+  summarise_all(mean) %>%
+  knitr::kable(digits = 2)
+```
+
+## Ambiguity by context
+
+```{r ambiguity by context}
+d %>% select(
+  "ss_ambi",
+  "liwc_ambi",
+  "tidytext_ambi",
+  "q",
+  ) %>% 
+  group_by(q) %>%
+  summarise_all(mean, na.rm=T) %>%
+  knitr::kable(digits = 2)
+```
+
+## Ambiguity by teacher, non-teacher
+
+```{r ambiguity by teacher non-teacher}
+d %>% select(
+  "ss_ambi",
+  "liwc_ambi",
+  "tidytext_ambi",
+  "is_teacher",
+  ) %>% 
+  group_by(is_teacher) %>%
+  summarise_all(mean, na.rm=T) %>%
+  knitr::kable(digits = 2)
+```
+
+## Ambiguity by isChat
+
+```{r ambiguity by isChat}
+d %>% select(
+  "ss_ambi",
+  "liwc_ambi",
+  "tidytext_ambi",
+  "isChat",
+  ) %>% 
+  group_by(isChat) %>%
+  summarise_all(mean, na.rm=T) %>%
+  knitr::kable(digits = 2)
+```
