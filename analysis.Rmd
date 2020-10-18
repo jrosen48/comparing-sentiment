@@ -53,4 +53,23 @@ m <- lm(total_discrepancy_scale ~
 tab_model(m, show.icc = TRUE)
 ```
 
+## Modeling overall scale discprepancy with sqrt applied
 
+```{r modeling scale sqrt}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_scale %>% sqrt ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+## Modeling overall scale discprepancy with log applied
+
+```{r modeling scale log}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_scale %>% log ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```

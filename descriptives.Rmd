@@ -172,22 +172,6 @@ d %>%
   knitr::kable()
 ```
 
-## Correlations discrepancy 
-
-```{r correlations discrepancy}
-d %>% 
-  select(nchar, nwords,
-         favorite_count, followers_count,
-         ss_ambi, liwc_ambi, tidytext_ambi, 
-         total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale
-         ) %>% 
-  select_if(is.numeric) %>% 
-  corrr::correlate() %>% 
-  select(rowname, total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale) %>%
-  corrr::fashion() %>%
-  knitr::kable()
-```
-
 ## Individual tidytext dictionary coverage
 
 ```{r dictionary coverage, echo=FALSE}
@@ -309,7 +293,99 @@ d %>% select(
   knitr::kable(digits = 2)
 ```
 
-## Normality checks of variables
+## Discrepancy normality check and transformation
+
+### Overall
+
+```{r}
+d %>% 
+  ggplot(aes(x = total_discrepancy_scale)) +
+  geom_histogram()
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = total_discrepancy_scale %>% sqrt)) +
+  geom_histogram()
+```
+
+Most like a normal-distribution when log-transformed
+
+```{r}
+d %>% 
+  ggplot(aes(x = total_discrepancy_scale %>% log)) +
+  geom_histogram()
+```
+
+### Pos
+
+```{r}
+d %>% 
+  ggplot(aes(x = total_discrepancy_pos %>% log)) +
+  geom_histogram()
+```
+
+### Neg seems to be of few use
+
+```{r}
+d %>% 
+  ggplot(aes(x = total_discrepancy_neg %>% log)) +
+  geom_histogram()
+```
+
+## Correlations discrepancy 
+
+```{r correlations discrepancy}
+d %>% 
+  select(nchar, nwords,
+         favorite_count, followers_count,
+         ss_ambi, liwc_ambi, tidytext_ambi, 
+         total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale
+         ) %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  select(rowname, total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale) %>%
+  corrr::fashion() %>%
+  knitr::kable()
+```
+
+```{r correlations discrepancy sqrt transformed}
+d$total_discrepancy_pos_sqrt <- d$total_discrepancy_pos %>% sqrt
+d$total_discrepancy_neg_sqrt <- d$total_discrepancy_neg %>% sqrt
+d$total_discrepancy_scale_sqrt <- d$total_discrepancy_scale %>% sqrt
+
+d %>% 
+  select(nchar, nwords,
+         favorite_count, followers_count,
+         ss_ambi, liwc_ambi, tidytext_ambi, 
+         total_discrepancy_pos_sqrt, total_discrepancy_neg_sqrt, total_discrepancy_scale_sqrt
+         ) %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  select(rowname, total_discrepancy_pos_sqrt, total_discrepancy_neg_sqrt, total_discrepancy_scale_sqrt) %>%
+  corrr::fashion() %>%
+  knitr::kable(caption = "Correlates of dicrepancy measures, sqrt-transformed")
+```
+
+```{r correlations discrepancy log transformed}
+d$total_discrepancy_pos_log <- d$total_discrepancy_pos %>% log
+d$total_discrepancy_neg_log <- d$total_discrepancy_neg %>% log
+d$total_discrepancy_scale_log <- d$total_discrepancy_scale %>% log
+
+d %>% 
+  select(nchar, nwords,
+         favorite_count, followers_count,
+         ss_ambi, liwc_ambi, tidytext_ambi, 
+         total_discrepancy_pos_log, total_discrepancy_neg_log, total_discrepancy_scale_log
+         ) %>% 
+  select_if(is.numeric) %>% 
+  corrr::correlate() %>% 
+  select(rowname, total_discrepancy_pos_log, total_discrepancy_neg_log, total_discrepancy_scale_log) %>%
+  corrr::fashion() %>%
+  knitr::kable(caption = "Correlates of dicrepancy measures, log-transformed")
+```
+
+## Normality checks of sentiment variables
 
 ### sentistrength 
 
@@ -383,4 +459,159 @@ d %>%
 d %>% 
   ggplot(aes(x = liwc_neg)) +
   geom_histogram()
+```
+
+## Visualizing discrepancy
+
+### Total scale disc ~ nwords
+
+```{r, Total scale disc ~ nwords}
+#library(extrafont)
+#loadfonts(device="win")
+d %>% 
+  ggplot(aes(x = nwords, y = total_discrepancy_scale)) +
+  geom_smooth() + 
+  theme_bw() +
+  xlab("Number of words") + 
+  ylab("Total squared discrepancy of overall sentiment scales") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+### Mean total scale disc ~ ss_ambi
+
+```{r, Mean total scale disc ~ ss_ambi}
+d %>% 
+  select(ss_ambi, total_discrepancy_scale) %>%
+  group_by(ss_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = ss_ambi, y = total_discrepancy_scale)) +
+  geom_bar(stat="identity") + 
+  theme_bw() +
+  xlab("Ambiguity SentiStrength (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+### Mean total scale disc ~ liwc_ambi
+
+```{r, Mean total scale disc ~ liwc_ambi}
+d %>% 
+  select(liwc_ambi, total_discrepancy_scale) %>%
+  group_by(liwc_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = liwc_ambi, y = total_discrepancy_scale)) +
+  geom_point() + 
+  theme_bw() +
+  xlab("Ambiguity LIWC (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+### Mean total scale disc ~ tidytext_ambi
+
+```{r, Mean total scale disc ~ tidytext_ambi}
+d %>% 
+  select(tidytext_ambi, total_discrepancy_scale) %>%
+  group_by(tidytext_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = tidytext_ambi, y = total_discrepancy_scale)) +
+  geom_point() + 
+  theme_bw() +
+  xlab("Ambiguity Tidytext (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+## Apply sqrt() to dicrepancy values
+
+### Mean total scale disc ~ ss_ambi
+
+```{r, Mean total scale disc ~ ss_ambi 2}
+d %>% 
+  select(ss_ambi, total_discrepancy_scale) %>%
+  group_by(ss_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = ss_ambi, y = total_discrepancy_scale %>% sqrt)) +
+  geom_bar(stat="identity") + 
+  theme_bw() +
+  xlab("Ambiguity SentiStrength (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+### Mean total scale disc ~ liwc_ambi
+
+```{r, Mean total scale disc ~ liwc_ambi 2}
+d %>% 
+  select(liwc_ambi, total_discrepancy_scale) %>%
+  group_by(liwc_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = liwc_ambi, y = total_discrepancy_scale %>% sqrt)) +
+  geom_point() + 
+  theme_bw() +
+  xlab("Ambiguity LIWC (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+### Mean total scale disc ~ tidytext_ambi
+
+```{r, Mean total scale disc ~ tidytext_ambi 2}
+d %>% 
+  select(tidytext_ambi, total_discrepancy_scale) %>%
+  group_by(tidytext_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = tidytext_ambi, y = total_discrepancy_scale %>% sqrt)) +
+  geom_point() + 
+  theme_bw() +
+  xlab("Ambiguity Tidytext (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+## Apply log() to dicrepancy values
+
+### Mean total scale disc ~ ss_ambi
+
+```{r, Mean total scale disc ~ ss_ambi 3}
+d %>% 
+  select(ss_ambi, total_discrepancy_scale) %>%
+  group_by(ss_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = ss_ambi, y = total_discrepancy_scale %>% log)) +
+  geom_bar(stat="identity") + 
+  theme_bw() +
+  xlab("Ambiguity SentiStrength (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+### Mean total scale disc ~ liwc_ambi
+
+```{r, Mean total scale disc ~ liwc_ambi 3}
+d %>% 
+  select(liwc_ambi, total_discrepancy_scale) %>%
+  group_by(liwc_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = liwc_ambi, y = total_discrepancy_scale %>% log)) +
+  geom_point() + 
+  theme_bw() +
+  xlab("Ambiguity LIWC (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
+```
+
+### Mean total scale disc ~ tidytext_ambi
+
+```{r, Mean total scale disc ~ tidytext_ambi 3}
+d %>% 
+  select(tidytext_ambi, total_discrepancy_scale) %>%
+  group_by(tidytext_ambi) %>%
+  summarise_all(mean, na.rm=T) %>%
+  ggplot(aes(x = tidytext_ambi, y = total_discrepancy_scale %>% log)) +
+  geom_point() + 
+  theme_bw() +
+  xlab("Ambiguity Tidytext (unique values)") + 
+  ylab("Mean total discrepancy of overall scale methods") #+
+  #theme(text=element_text(family="Times New Roman", size=12)) 
 ```
