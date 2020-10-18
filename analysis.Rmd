@@ -9,6 +9,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sjPlot)
 ```
 
 ## Loading final data set from Targets cache
@@ -19,12 +21,36 @@ d <- final_data
 rm(final_data)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+## Modeling positivity discprepancy
+```{r modeling pos}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_pos ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Modeling negativity discprepancy
+
+```{r modeling neg}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_neg ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+
+## Modeling overall scale discprepancy
+
+```{r modeling scale}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_scale ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+
+

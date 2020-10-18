@@ -131,6 +131,34 @@ d %>%
   knitr::kable()
 ```
 
+## Confusion matrix Sentistrength, LIWC
+
+```{r confusion matrix Sentistrength LIWC}
+d$ss_binary <- factor(d$ss_binary, levels=c(-1, 1), labels=c(0, 1))
+d$liwc_binary <- as.factor(d$liwc_binary)
+print("PREDICTION: Sentistrength; REFERENCE: LIWC")
+caret::confusionMatrix(data=d$ss_binary, reference=d$liwc_binary)
+```
+
+## Confusion matrix LIWC, Tidytext - Excluding Tidytext non-matches
+
+```{r confusion matrix LIWC Tidytext}
+d$tidytext_binary <- as.factor(d$tidytext_binary)
+d$liwc_binary <- as.factor(d$liwc_binary)
+print("PREDICTION: Tidytext; REFERENCE: LIWC")
+caret::confusionMatrix(data=d$tidytext_binary, reference=d$liwc_binary)
+```
+
+## Confusion matrix Sentistrength, Tidytext - Excluding Tidytext non-matches
+
+```{r confusion matrix Sentistrength Tidytext}
+d$ss_binary[d$ss_binary == -1] <- 0
+d$ss_binary <- as.factor(d$ss_binary)
+d$tidytext_binary <- as.factor(d$tidytext_binary)
+print("PREDICTION: Sentistrength; REFERENCE: Tidytext")
+caret::confusionMatrix(data=d$ss_binary, reference=d$tidytext_binary)
+```
+
 ## Correlations ambiguity measures
 
 ```{r correlations ambiguity measures}
@@ -279,4 +307,80 @@ d %>% select(
   group_by(isChat) %>%
   summarise_all(mean, na.rm=T) %>%
   knitr::kable(digits = 2)
+```
+
+## Normality checks of variables
+
+### sentistrength 
+
+```{r}
+d %>% 
+  ggplot(aes(x = ss_scale)) +
+  geom_histogram()
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = ss_pos)) +
+  geom_histogram()
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = ss_neg)) +
+  geom_histogram()
+```
+
+### tidytext
+
+```{r}
+d %>% 
+  ggplot(aes(x = tidytext_scale)) +
+  geom_histogram(bins = 100)
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = log(tidytext_scale + 1))) +
+  geom_histogram(bins = 100)
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = tidytext_pos)) +
+  geom_histogram()
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = tidytext_neg)) +
+  geom_histogram()
+```
+
+### liwc
+
+```{r}
+d %>% 
+  ggplot(aes(x = liwc_scale)) +
+  geom_histogram()
+```
+
+with a log transformation
+
+```{r}
+d %>% 
+  ggplot(aes(x = log(liwc_scale + 1))) +
+  geom_histogram()
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = liwc_pos)) +
+  geom_histogram()
+```
+
+```{r}
+d %>% 
+  ggplot(aes(x = liwc_neg)) +
+  geom_histogram()
 ```
