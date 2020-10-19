@@ -1,7 +1,9 @@
 library(targets)
 
 # Set target-specific options such as packages.
-targets::tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", "textdata", "hash", "sjPlot"))
+targets::tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", 
+                                     "textdata", "hash", "sjPlot",
+                                     "janitor", "googlesheets4"))
 
 source(here::here("R", "functions.R"))
 
@@ -45,8 +47,11 @@ targets <- list(
   tar_target(data_discrepancy, data_context %>% discrepancy_master()),
 
   tar_target(final_data_file, data_discrepancy %>% save_final_dataset(), format = "file"),
-  tar_target(final_data, readRDS(final_data_file))#,
-
+  tar_target(final_data, readRDS(final_data_file)) ,
+  
+  # agreement from manual coding
+  tar_target(agree_df, access_manual_coding_data(1:20)), # row indices are for the first 20 rows manually coded
+  tar_target(agree_statistics, calculate_manual_agreement(agree_df))
   # Descriptives and results in seperate Rmd Files in root folder for now
 
   #tar_target(descriptives, final_data %>% descriptives_master()),
