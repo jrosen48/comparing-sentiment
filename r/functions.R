@@ -826,3 +826,8 @@ calculate_manual_agreement <- function(agree_df) {
   
   bind_rows(d1, d2)
 }
+
+write_file_for_liwc <- function(d) {
+  select(d, status_id, text) %>% 
+    write_csv(here::here("data", "file-to-upload-to-liwc.csv"))
+}

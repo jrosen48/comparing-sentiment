@@ -25,6 +25,7 @@ targets <- list(
   
   tar_target(raw_data_file, create_raw_data(), format = "file"),
   tar_target(raw_data, readRDS(raw_data_file)),
+  tar_target(file_to_upload_to_liwc, write_file_for_liwc(raw_data)),
 
   tar_target(ss_scale_file, here::here("data-sentiment", "sentistrength_scale.txt"), format="file"),
   tar_target(ss_binary_file, here::here("data-sentiment", "sentistrength_binary.txt"), format="file"),
