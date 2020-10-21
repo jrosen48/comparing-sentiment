@@ -1,5 +1,21 @@
 ##### READING IN AND COMBINING RAW DATA FILES #####
 
+additional_data_prep <- function(d){
+  d$dl_at <- NA
+  return(
+    d %>% remove_variables()
+  )
+}
+
+remove_variables <- function(d){
+  return(
+    d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
+                   "is_retweet", "is_quote",
+                   "favorite_count", "retweet_count", "lang", 
+                   ))
+  )
+}
+
 create_raw_data <- function(){
   fns <- dir(here::here("data-raw"), pattern=".rda")
   i <- 1
@@ -7,7 +23,7 @@ create_raw_data <- function(){
   for (fn in fns){
     load(here::here("data-raw", fn))
     tweets_dl$dl_at <- file.info(here::here("data-raw", fn))$mtime
-    object_list[[i]] <- tweets_dl
+    object_list[[i]] <- tweets_dl %>% remove_variables()
     i <- i+1
     cat("\014", round(which(fn == fns)/length(fns)*100, 0), "% files read in\n")
   }
@@ -16,6 +32,21 @@ create_raw_data <- function(){
   d <- d[!duplicated(d$status_id),]
   saveRDS(d, here::here("data", "data_raw.rds"))
   return(here::here("data", "data_raw.rds"))
+}
+
+merge_additional_files <- function(d_raw, d_additional){
+  d_raw <- rbind(d_raw, d_additional)
+  d_raw <- d_raw[order(d_raw$created_at),]
+  d_raw <- d_raw[!duplicated(d_raw$status_id),]
+  return(d_raw)
+}
+
+combine_liwc_dfs <- function(d1, d2){
+  d1 <- d1 %>% select(status_id, posemo, negemo)
+  d2 <- d2 %>% select(status_id, posemo, negemo)
+  d1 <- rbind(d1, d2)
+  d1 <- d1 <- d1[!duplicated(d1$status_id),]
+  return(d1)
 }
 
 ##### ADD EXTERNAL SENTIMENT DATA #####
@@ -48,17 +79,6 @@ add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data){
 
 ##### Cleaning Data #####
 
-remove_variables <- function(d){
-  return(
-    d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
-                   "is_retweet", "is_quote", "reply_to_status_id", "reply_to_user_id",
-                   "favorite_count", "retweet_count", "quote_count", "reply_count", "lang", # tweet level
-                   "followers_count", "friends_count", "listed_count", # user level
-                   "ss_pos", "ss_neg", "ss_scale", "ss_scale_scaled", "ss_binary", # sentistrength sentiment
-                   "liwc_pos", "liwc_neg", "liwc_scale", "liwc_scale_scaled", "liwc_binary")) # liwc sentiment
-  )
-}
-
 preprocess_text <- function(d){
   d$text_clean <- d$text %>% 
     gsub(pattern="https\\S*", replacement="") %>%   # urls
@@ -80,7 +100,6 @@ remove_langs <- function(d){
 
 clean_master <- function(d){
   d <- d %>%
-    remove_variables() %>%
     preprocess_text() %>%
     remove_langs()
   saveRDS(d, here::here("data", "data_clean.rds"))
