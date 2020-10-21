@@ -26,15 +26,18 @@ targets <- list(
   tar_target(raw_data_file, create_raw_data(), format = "file"),
   tar_target(raw_data, readRDS(raw_data_file)),
   tar_target(file_to_upload_to_liwc, write_file_for_liwc(raw_data)),
-
+  tar_target(state_hashtags_file, here::here("data", "state-based-twitter-hashtags-raw-data.rds"), format = "file"),
+  tar_target(state_hashtags_data, readRDS(state_hashtags_file)),
+  tar_target(state_hashtags_file_to_upload_to_liwc, write_state_hashtags_file_for_liwc(state_hashtags_data)),
+  
   tar_target(ss_scale_file, here::here("data-sentiment", "sentistrength_scale.txt"), format="file"),
   tar_target(ss_binary_file, here::here("data-sentiment", "sentistrength_binary.txt"), format="file"),
-  tar_target(liwc_file, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
+  tar_target(ngss_liwc_file, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
   tar_target(teacher_class_file, here::here("data-sentiment", "teacher_prediction.csv"), format="file"),
   
   tar_target(ss_scale_data, read.table(ss_scale_file, sep="\t", header = T, quote="")),
   tar_target(ss_binary_data, read.table(ss_binary_file, sep="\t", header = T, quote="")),
-  tar_target(liwc_data, read_liwc_and_rename_input_cols(liwc_file)),
+  tar_target(liwc_data, read_liwc_and_rename_input_cols(ngss_liwc_file)),
   tar_target(teacher_class_data, read.csv(teacher_class_file) %>% rename(is_teacher=prediction_by_keywords)), 
   
   tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, liwc_data, teacher_class_data)),

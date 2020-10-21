@@ -831,3 +831,8 @@ write_file_for_liwc <- function(d) {
   select(d, status_id, text) %>% 
     write_csv(here::here("data", "file-to-upload-to-liwc.csv"))
 }
+
+write_state_hashtags_file_for_liwc <- function(d) {
+  select(d, status_id, text) %>% 
+    write_csv(here::here("data", "state-hashtags-file-to-upload-to-liwc.csv"))
+}
