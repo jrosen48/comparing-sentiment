@@ -1,7 +1,9 @@
 library(targets)
 
 # Set target-specific options such as packages.
-targets::tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", "textdata"))
+targets::tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate", 
+                                     "textdata", "hash", "sjPlot",
+                                     "janitor", "googlesheets4"))
 
 source(here::here("R", "functions.R"))
 
@@ -16,6 +18,7 @@ targets <- list(
   tar_target(additional_data_prepared, additional_data %>% additional_data_prep()),
   
   tar_target(raw_data_combined, merge_additional_files(raw_data, additional_data_prepared)),
+  tar_target(file_to_upload_to_liwc, write_file_for_liwc(raw_data_combined)),
              
   tar_target(liwc_file_raw, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
   tar_target(liwc_file_additional, here::here("data-sentiment", "state-hashtags-liwc-results.csv"), format = "file"),
@@ -48,7 +51,11 @@ targets <- list(
   # RESULTS: optionally for different subsets (#NGSSchat, non-chat, ...) # JR comment: unclear what this meansgit
 
   #tar_target(descriptives, final_data %>% descriptives_master()),
-  #tar_target(analysis, final_data %>% analysis_master())
+  #tar_target(analysis, final_data %>% analysis_master()),
+  
+  # agreement from manual coding
+  #tar_target(agree_df, access_manual_coding_data(1:20)), # row indices are for the first 20 rows manually coded
+  #tar_target(agree_statistics, calculate_manual_agreement(agree_df))
 
 )
 

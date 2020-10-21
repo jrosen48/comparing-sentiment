@@ -1,0 +1,86 @@
+---
+title: "Analysis"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sjPlot)
+```
+
+## Loading final data set from Targets cache
+
+```{r loading data}
+targets::tar_load("final_data")
+d <- final_data
+rm(final_data)
+```
+
+## Modeling positivity discprepancy
+```{r modeling pos}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_pos ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+
+## Modeling negativity discprepancy
+
+```{r modeling neg}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_neg ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+
+## Modeling overall scale discprepancy
+
+```{r modeling scale}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_scale ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+
+## Modeling overall scale discprepancy with sqrt applied
+
+```{r modeling scale sqrt}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_scale %>% sqrt ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+## Modeling overall scale discprepancy with log applied
+
+```{r modeling scale log}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_scale %>% log ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi + liwc_ambi + tidytext_ambi + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+
+## Optized model, discrepancy and ambiguity most normally distributed when log transformed, other predictors correlate best when nothing is transformed
+
+```{r modeling scale optimized}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(total_discrepancy_scale ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          ss_ambi %>% exp + liwc_ambi %>% exp + tidytext_ambi %>% exp + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
