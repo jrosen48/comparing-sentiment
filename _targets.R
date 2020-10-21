@@ -18,6 +18,7 @@ targets <- list(
   tar_target(additional_data_prepared, additional_data %>% additional_data_prep()),
   
   tar_target(raw_data_combined, merge_additional_files(raw_data, additional_data_prepared)),
+  tar_target(write_raw_data_combined_for_liwc, raw_data_combined %>% select(status_id, text) %>% write_csv(here("data", "raw-data-combined-for-liwc.csv"))),
   tar_target(file_to_upload_to_liwc, write_file_for_liwc(raw_data_combined)),
              
   tar_target(liwc_file_raw, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
