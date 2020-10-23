@@ -1,17 +1,16 @@
 ##### READING IN AND COMBINING RAW DATA FILES #####
 
 additional_data_prep <- function(d){
-  d$dl_at <- NA
   return(
-    d %>% remove_variables()
+    d %>% select(c("status_id", "created_at"))
   )
 }
 
 remove_variables <- function(d){
   return(
     d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
-                   "is_retweet", "is_quote",
-                   "favorite_count", "retweet_count", "lang", 
+                   "is_retweet", "is_quote", 
+                   "favorite_count", "retweet_count", "lang", "description" 
                    ))
   )
 }
@@ -55,26 +54,64 @@ add_sentistrength <- function(d, ss_scale_data, ss_binary_data){
   d$ss_pos <- ss_scale_data[,1]
   d$ss_neg <- ss_scale_data[,2]
   d$ss_scale <- d$ss_pos + d$ss_neg
+  d$ss_pos_scaled <- d$ss_pos %>% scale()
+  d$ss_neg_scaled <- d$ss_neg %>% scale()
   d$ss_scale_scaled <- d$ss_scale %>% scale()
   d$ss_binary <- ss_binary_data[,1]
   return(d)
 }
 
 add_liwc <- function(d, liwc_data){
-  d$liwc_pos <- liwc_data$posemo
-  d$liwc_neg <- liwc_data$negemo
+  d <- d %>% 
+    left_join(liwc_data) %>%
+    rename(liwc_pos = posemo, liwc_neg = negemo)
   d$liwc_scale <- d$liwc_pos - d$liwc_neg
   d$liwc_scale_scaled <- d$liwc_scale %>% scale()
   d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
   return(d)
 }
 
-add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data){
+add_is_teacher <- function(d, teacher_class_data){
+  d$is_teacher <- teacher_class_data[,1]
+  # assign role at random for ambiguous classification due to changed profiles over time
+  # seed automatically determined by targets
+  dups <- d %>% 
+    select(c("user_id", "is_teacher")) %>%
+    unique() 
+  dups <- dups[duplicated(dups$user_id),] 
+  dups$is_teacher <- sample(0:1, nrow(dups), replace=T)
+  h <- hash(dups$user_id, dups$is_teacher)
+  d$is_teacher[d$user_id %in% keys(h)] <- sapply(d$user_id[d$user_id %in% keys(h)], 
+                                                 FUN=function(k){h[k] %>% values() %>% as.numeric()})
+  return(d)
+}
+
+add_external_master <- function(d, ss_scale_data, ss_binary_data, teacher_class_data){
   return(
     d %>%
       add_sentistrength(ss_scale_data=ss_scale_data, ss_binary_data=ss_binary_data) %>%
-      add_liwc(liwc_data=liwc_data) 
+      add_is_teacher(teacher_class_data=teacher_class_data)
   )
+}
+
+add_liwc_to_additional_data <- function(d, d_liwc){
+  d$liwc_pos <- d_liwc$posemo
+  d$liwc_neg <- d_liwc$negemo
+  d$liwc_scale <- d$liwc_pos - d$liwc_neg
+  d$liwc_pos_scaled <- d$liwc_pos %>% scale()
+  d$liwc_neg_scaled <- d$liwc_neg %>% scale()
+  d$liwc_scale_scaled <- d$liwc_scale %>% scale()
+  d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
+  return(d)
+}
+
+create_matching_df <- function(d_raw, d_additional){
+  d_raw <- d_raw[d_raw$dl_at < "2020-10-22 00:00:00 CEST",] %>% 
+    select(status_id, created_at)
+  out <- rbind(d_raw, d_additional)
+  out <- out[order(out$created_at),]
+  out <- out[!duplicated(out$status_id),]
+  return(out %>% select(status_id))
 }
 
 ##### Cleaning Data #####
@@ -246,6 +283,8 @@ scale_tidytext_scales <- function(d){
   d$afinn_scale_scaled <- scale(d$afinn_scale)
   d$loughran_scale_scaled <- scale(d$loughran_scale)
   d$nrc_scale_scaled <- scale(d$nrc_scale)
+  d$tidytext_pos_scaled <- scale(d$tidytext_pos)
+  d$tidytext_neg_scaled <- scale(d$tidytext_neg)
   d$tidytext_scale_scaled <- scale(d$tidytext_scale)
   return(d)
 }
@@ -273,8 +312,9 @@ add_q <- function(d){
   has_ngss <- grep("\\#ngss\\b|\\bngss\\b", text_small)
   d$q <- rep(NA, nrow(d))
   d$q[has_ngsschat] <- "#NGSSchat"
-  d$q[base::setdiff(has_ngss, has_ngsschat)] <- "ngss"  # fill in ngss withough #ngsschat
-  d$q[base::setdiff(1:nrow(d), unique(c(has_ngss, has_ngsschat)))] <- "other" # fill in remaining
+  d$q[base::setdiff(has_ngss, has_ngsschat)] <- "ngss"
+  d$q[which(d$dl_at > "2020-10-22 00:00:00 CEST")] <- "state-based-hashtags" # recent additions
+  d$q[which(is.na(d$q))] <- "other" # fill in remaining
   d$q <- as.factor(d$q)
   return(d)
 }
@@ -368,58 +408,73 @@ context_master <- function(d){
   )
 }
 
+
 ##### DISCREPANCY VARIABLES #####
 
-get_scales <- function(){
-  return(
-    c(
-      "ss_scale_scaled",
-      "liwc_scale_scaled",
-      "bing_scale_scaled",
-      "afinn_scale_scaled",
-      "loughran_scale_scaled",
-      "nrc_scale_scaled",
-      "tidytext_scale_scaled"
-    )
+get_scales <- function(scale = "scale", scaled = TRUE){
+  out <- c(
+    "ss",
+    "liwc",
+    "tidytext"
   )
+  if (scale == "pos") {out <- paste0(out, "_pos")}
+  else if (scale == "neg") {out <- paste0(out, "_neg")}
+  else {out <- paste0(out, "_scale")}
+  if (scaled) {out <- paste0(out, "_scaled")}
+  return(out)
 }
 
-add_pairwise_disc <- function(d){
-  s_scales <- get_scales()
+add_pairwise_disc <- function(d, scale = "scale", scaled = TRUE){
   
-  combinations <- t(combn(s_scales, 2))
+  scales <- get_scales(scale, scaled)
+  
+  combinations <- t(combn(scales, 2))
   
   for (i in 1:nrow(combinations)){  # iterate through each combination and build squared diff
     name <- paste(
       combinations[i, 1] %>% strsplit("_") %>% unlist() %>% head(1),
       combinations[i, 2] %>% strsplit("_") %>% unlist() %>% head(1), 
-      "discrepancy", sep="_"
+      "discrepancy", scale, sep="_"
     )
-    d$temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2
+    d$temp <- abs(d[,combinations[i, 1]] - d[,combinations[i, 2]])
     names(d)[names(d) == "temp"] <- name
   }
   return(d)
 }
 
-add_total_disc <- function(d){  
-  s_scales <- get_scales()
+add_total_disc <- function(d, scale = "scale", scaled = TRUE){  
   
-  combinations <- t(combn(s_scales, 2))
+  scales <- get_scales(scale, scaled)
+  
+  combinations <- t(combn(scales, 2))
   
   the_sum <- rep(0, nrow(d))
   n_combs <- rep(0, nrow(d))
   
   for (i in 1:nrow(combinations)){  
-    temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2 %>% unlist() %>% as.numeric()
+    temp <- abs(d[,combinations[i, 1]] - d[,combinations[i, 2]]) %>% unlist() %>% as.numeric()
     the_sum[which(!is.na(temp))] <- the_sum[which(!is.na(temp))] + temp[which(!is.na(temp))]
     n_combs[which(!is.na(temp))] <- n_combs[which(!is.na(temp))] + 1 # += 1 for available combination 
   } 
   
-  the_sum[the_sum == 0] <- NA     # reassign NAs for possible 0 coverage
-  d$total_discrepancy <- the_sum
+  name <- paste(
+    "total", "discrepancy", scale, sep="_"
+  )
   
-  d$total_discrepancy <- d$total_discrepancy / n_combs  # normalize by number of combinations
-  d$n_combs <- n_combs  # for later coverage statistics
+  the_sum[the_sum == 0] <- NA     # reassign NAs for possible 0 coverage
+  
+  d$temp <- the_sum
+  d$temp <- d$temp / n_combs  # normalize by number of combinations
+  
+  names(d)[names(d) == "temp"] <- name
+  
+  name <- paste(
+    "n", "combinations", scale, sep="_"
+  )
+  
+  d$temp <- n_combs  # for later coverage statistics
+  
+  names(d)[names(d) == "temp"] <- name
   
   return(d)
 }
@@ -434,8 +489,12 @@ add_ambiguity_measure <- function(d){   # for robustness check and later explora
 discrepancy_master <- function(d){
   return(
     d %>%
-      add_pairwise_disc() %>%
-      add_total_disc() %>%
+      add_pairwise_disc(scale = "pos", scaled = TRUE) %>%
+      add_total_disc(scale = "pos", scaled = TRUE) %>%
+      add_pairwise_disc(scale = "neg", scaled = TRUE) %>%
+      add_total_disc(scale = "neg", scaled = TRUE) %>%
+      add_pairwise_disc(scale = "scale", scaled = TRUE) %>%
+      add_total_disc(scale = "scale", scaled = TRUE) %>%
       add_ambiguity_measure()
   )
 }
@@ -566,7 +625,8 @@ read_liwc_and_rename_input_cols <- function(path) {
   d <- read_csv(path)
   d <- d %>%
     rename(status_id = A,
-           text = B)
+           text = B) %>%
+    select(status_id, posemo, negemo)
   d
 }
 

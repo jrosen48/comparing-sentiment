@@ -17,37 +17,36 @@ targets <- list(
   tar_target(additional_data, readRDS(additional_data_file)),
   tar_target(additional_data_prepared, additional_data %>% additional_data_prep()),
   
-  tar_target(raw_data_combined, merge_additional_files(raw_data, additional_data_prepared)),
-  tar_target(write_raw_data_combined_for_liwc, raw_data_combined %>% select(status_id, text) %>% write_csv(here("data", "raw-data-combined-for-liwc.csv"))),
-  tar_target(file_to_upload_to_liwc, write_file_for_liwc(raw_data_combined)),
-             
-  tar_target(liwc_file_raw, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
-  tar_target(liwc_file_additional, here::here("data-sentiment", "state-hashtags-liwc-results.csv"), format = "file"),
-  tar_target(liwc_data_raw, read_liwc_and_rename_input_cols(liwc_file_raw)),
-  tar_target(liwc_data_additional, read_liwc_and_rename_input_cols(liwc_file_additional)),
-  tar_target(combined_liwc_results, combine_liwc_dfs(liwc_data_raw, liwc_data_additional)),
+  #tar_target(raw_data_combined, merge_additional_files(raw_data, additional_data_prepared)),
+  #tar_target(write_raw_data_combined_for_liwc, raw_data_combined %>% select(status_id, text) %>% write_csv(here("data-sentiment", "raw-data-combined-for-liwc.csv"))),
   
-  tar_target(combine_liwc_results, 0)
+  tar_target(liwc_file_path, here::here("data-sentiment", "raw-data-combined-for-liwc-results.csv"), format = "file"),
+  tar_target(liwc_data, read_liwc_and_rename_input_cols(liwc_file_path)),
   
+  tar_target(matching_df_liwc, create_matching_df(raw_data, additional_data_prepared)),
+  tar_target(add_liwc_df, add_liwc_to_additional_data(matching_df_liwc, liwc_data)),
+  tar_target(match_liwc_to_raw_data, raw_data %>% left_join(add_liwc_df, by="status_id")),
 
-  #tar_target(ss_scale_file, here::here("data-sentiment", "sentistrength_scale.txt"), format="file"),
-  #tar_target(ss_binary_file, here::here("data-sentiment", "sentistrength_binary.txt"), format="file"),
+  tar_target(ss_scale_file, here::here("data-sentiment", "sentistrength_scale.txt"), format="file"),
+  tar_target(ss_binary_file, here::here("data-sentiment", "sentistrength_binary.txt"), format="file"),
   
-  #tar_target(ss_scale_data, read.table(ss_scale_file, sep="\t", header = T, quote="")),
-  #tar_target(ss_binary_data, read.table(ss_binary_file, sep="\t", header = T, quote="")),
+  tar_target(ss_scale_data, read.table(ss_scale_file, sep="\t", header = T, quote="")),
+  tar_target(ss_binary_data, read.table(ss_binary_file, sep="\t", header = T, quote="")),
   
-  #tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, liwc_data)),
+  tar_target(teacher_class_file, here::here("data-sentiment", "teacher_prediction.csv"), format="file"),
+  tar_target(teacher_class_data, read.csv(teacher_class_file) %>% rename(is_teacher=prediction_by_keywords)), 
+  
+  tar_target(raw_with_external, add_external_master(match_liwc_to_raw_data, ss_scale_data, ss_binary_data, teacher_class_data)),
+  tar_target(clean_data_file, raw_with_external %>% clean_master(), format = "file"),
+  tar_target(clean_data, readRDS(clean_data_file)),
 
-  #tar_target(clean_data_file, raw_with_external %>% clean_master(), format = "file"),
-  #tar_target(clean_data, readRDS(clean_data_file)),
+  tar_target(data_main_vars, clean_data %>% add_vars_master()),
+  tar_target(data_tidytext, data_main_vars %>% tidytext_master()),
+  tar_target(data_context, data_tidytext %>% context_master()),
+  tar_target(data_discrepancy, data_context %>% discrepancy_master()),
 
-  #tar_target(data_main_vars, clean_data %>% add_vars_master()),
-  #tar_target(data_tidytext, data_main_vars %>% tidytext_master()),
-  #tar_target(data_context, data_tidytext %>% context_master()),
-  #tar_target(data_discrepancy, data_context %>% discrepancy_master()),
-
-  #tar_target(final_data_file, data_discrepancy %>% save_final_dataset(), format = "file"),
-  #tar_target(final_data, readRDS(final_data_file)),
+  tar_target(final_data_file, data_discrepancy %>% save_final_dataset(), format = "file"),
+  tar_target(final_data, readRDS(final_data_file))#,
 
   # RESULTS: optionally for different subsets (#NGSSchat, non-chat, ...) # JR comment: unclear what this meansgit
 
