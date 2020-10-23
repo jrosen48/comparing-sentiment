@@ -53,34 +53,69 @@ m <- lm(total_discrepancy_scale ~
 tab_model(m, show.icc = TRUE)
 ```
 
-## Modeling overall scale discprepancy with sqrt applied
+## Exploration
 
-```{r modeling scale sqrt}
-d$isChat[is.na(d$isChat)] <- 0
-m <- lm(total_discrepancy_scale %>% sqrt ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
-tab_model(m, show.icc = TRUE)
-```
-## Modeling overall scale discprepancy with log applied
+### Predicting SentiStrength binary has higher R^2 vs. predicting scale 
 
-```{r modeling scale log}
+## Modeling SentiStrength binary
+
+```{r modeling SentiStrength binary}
 d$isChat[is.na(d$isChat)] <- 0
-m <- lm(total_discrepancy_scale %>% log ~ 
+d$ss_binary[d$ss_binary==-1] <- 0
+m <- glm(ss_binary ~ 
           nchar + nwords + isChat + is_teacher + q + 
-          ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
+          favorite_count + retweet_count, d, family="binomial")
 tab_model(m, show.icc = TRUE)
 ```
 
-## Optized model, discrepancy and ambiguity most normally distributed when log transformed, other predictors correlate best when nothing is transformed
+## Modeling SentiStrength scale
 
-```{r modeling scale optimized}
+```{r modeling SentiStrength scale}
 d$isChat[is.na(d$isChat)] <- 0
-m <- lm(total_discrepancy_scale ~ 
+m <- lm(ss_scale ~ 
           nchar + nwords + isChat + is_teacher + q + 
-          ss_ambi %>% exp + liwc_ambi %>% exp + tidytext_ambi %>% exp + 
           favorite_count + retweet_count, d)
 tab_model(m, show.icc = TRUE)
 ```
+
+### Modeling pos and neg as poisson has a higher R^2 as when modeled in lm()
+
+## Pos
+
+```{r modeling SentiStrength pos poisson}
+d$isChat[is.na(d$isChat)] <- 0
+m <- glm(ss_pos ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          favorite_count + retweet_count, d, family="poisson")
+tab_model(m, show.icc = TRUE)
+```
+
+```{r modeling SentiStrength pos lm}
+d$isChat[is.na(d$isChat)] <- 0
+m <- lm(ss_pos ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+
+## Neg
+
+```{r modeling SentiStrength neg poisson}
+d$isChat[is.na(d$isChat)] <- 0
+d$ss_neg <- abs(d$ss_neg)
+m <- glm(ss_neg ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          favorite_count + retweet_count, d, family="poisson")
+tab_model(m, show.icc = TRUE)
+```
+
+```{r modeling SentiStrength neg lm}
+d$isChat[is.na(d$isChat)] <- 0
+d$ss_neg <- abs(d$ss_neg)
+m <- lm(ss_neg ~ 
+          nchar + nwords + isChat + is_teacher + q + 
+          favorite_count + retweet_count, d)
+tab_model(m, show.icc = TRUE)
+```
+
+## LIWC and Tidytext do not have integers as pos/neg ouput, therefore they can not be modeled as poisson at this time

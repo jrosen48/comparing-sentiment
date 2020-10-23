@@ -7,6 +7,13 @@ targets::tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate
 
 source(here::here("R", "functions.R"))
 
+## Notes on data that has to be in the local folder to make this version of the pipeline work:
+
+# data-raw: all data files in .rda format including 10 hydrated files for additional tweets, 322 files total
+# data: state-based-twitter-hashtags-raw-data.rds
+# data-sentiment: teacher_prediction.csv, raw-data-combined-for-liwc-results.csv, 
+#                 sentistrength_scale.txt, sentistrength_binary.txt
+
 # Define targets
 targets <- list(
   
