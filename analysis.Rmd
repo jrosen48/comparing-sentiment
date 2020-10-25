@@ -24,10 +24,14 @@ rm(final_data)
 ## Modeling positivity discprepancy
 ```{r modeling pos}
 d$isChat[is.na(d$isChat)] <- 0
+d$is_teacher <- d$is_teacher %>% as.factor()
+d$ss_binary <- d$ss_binary %>% as.factor()
+d$liwc_binary <- d$liwc_binary %>% as.factor()
+d$tidytext_binary <- d$tidytext_binary %>% as.factor()
 m <- lm(total_discrepancy_pos ~ 
-          nchar + nwords + isChat + is_teacher + q + 
+          nwords + isChat + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
+          favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)
 ```
 
@@ -35,10 +39,14 @@ tab_model(m, show.icc = TRUE)
 
 ```{r modeling neg}
 d$isChat[is.na(d$isChat)] <- 0
+d$is_teacher <- d$is_teacher %>% as.factor()
+d$ss_binary <- d$ss_binary %>% as.factor()
+d$liwc_binary <- d$liwc_binary %>% as.factor()
+d$tidytext_binary <- d$tidytext_binary %>% as.factor()
 m <- lm(total_discrepancy_neg ~ 
-          nchar + nwords + isChat + is_teacher + q + 
+          nwords + isChat + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
+          favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)
 ```
 
@@ -46,76 +54,13 @@ tab_model(m, show.icc = TRUE)
 
 ```{r modeling scale}
 d$isChat[is.na(d$isChat)] <- 0
+d$is_teacher <- d$is_teacher %>% as.factor()
+d$ss_binary <- d$ss_binary %>% as.factor()
+d$liwc_binary <- d$liwc_binary %>% as.factor()
+d$tidytext_binary <- d$tidytext_binary %>% as.factor()
 m <- lm(total_discrepancy_scale ~ 
-          nchar + nwords + isChat + is_teacher + q + 
+          nwords + isChat + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
+          favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)
 ```
-
-## Exploration
-
-### Predicting SentiStrength binary has higher R^2 vs. predicting scale 
-
-## Modeling SentiStrength binary
-
-```{r modeling SentiStrength binary}
-d$isChat[is.na(d$isChat)] <- 0
-d$ss_binary[d$ss_binary==-1] <- 0
-m <- glm(ss_binary ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          favorite_count + retweet_count, d, family="binomial")
-tab_model(m, show.icc = TRUE)
-```
-
-## Modeling SentiStrength scale
-
-```{r modeling SentiStrength scale}
-d$isChat[is.na(d$isChat)] <- 0
-m <- lm(ss_scale ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          favorite_count + retweet_count, d)
-tab_model(m, show.icc = TRUE)
-```
-
-### Modeling pos and neg as poisson has a higher R^2 as when modeled in lm()
-
-## Pos
-
-```{r modeling SentiStrength pos poisson}
-d$isChat[is.na(d$isChat)] <- 0
-m <- glm(ss_pos ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          favorite_count + retweet_count, d, family="poisson")
-tab_model(m, show.icc = TRUE)
-```
-
-```{r modeling SentiStrength pos lm}
-d$isChat[is.na(d$isChat)] <- 0
-m <- lm(ss_pos ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          favorite_count + retweet_count, d)
-tab_model(m, show.icc = TRUE)
-```
-
-## Neg
-
-```{r modeling SentiStrength neg poisson}
-d$isChat[is.na(d$isChat)] <- 0
-d$ss_neg <- abs(d$ss_neg)
-m <- glm(ss_neg ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          favorite_count + retweet_count, d, family="poisson")
-tab_model(m, show.icc = TRUE)
-```
-
-```{r modeling SentiStrength neg lm}
-d$isChat[is.na(d$isChat)] <- 0
-d$ss_neg <- abs(d$ss_neg)
-m <- lm(ss_neg ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          favorite_count + retweet_count, d)
-tab_model(m, show.icc = TRUE)
-```
-
-## LIWC and Tidytext do not have integers as pos/neg ouput, therefore they can not be modeled as poisson at this time

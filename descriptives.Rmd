@@ -302,7 +302,7 @@ d %>% select(
   ) %>% 
   group_by(q) %>%
   summarise_all(mean, na.rm=T) %>%
-  knitr::kable(digits = 2)
+  knitr::kable(digits = 5)
 ```
 
 ## Ambiguity by teacher, non-teacher
@@ -316,7 +316,7 @@ d %>% select(
   ) %>% 
   group_by(is_teacher) %>%
   summarise_all(mean, na.rm=T) %>%
-  knitr::kable(digits = 2)
+  knitr::kable(digits = 5)
 ```
 
 ## Ambiguity by isChat
@@ -330,7 +330,7 @@ d %>% select(
   ) %>% 
   group_by(isChat) %>%
   summarise_all(mean, na.rm=T) %>%
-  knitr::kable(digits = 2)
+  knitr::kable(digits = 5)
 ```
 
 ## Correlations discrepancy 
