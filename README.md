@@ -11,6 +11,13 @@ install_github("wlandau/targets")
 
 To run the project pipeline, enter and run the following function:
 
+## Dependencies
+
+- `tidytext::get_sentiments("bing")`
+- `tidytext::get_sentiments("loughran")`
+- `tidytext::get_sentiments("nrc")`
+- `tidytext::get_sentiments("afinn")`
+
 `targets::tar_make()`
 
 ## Directory structure
