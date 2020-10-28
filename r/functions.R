@@ -798,11 +798,11 @@ join_id_string <- function(d, d_with_id) {
 
 access_manual_coding_data <- function(row_indices) {
   s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
-                                  sheet = 1) %>% 
+                                  sheet = 2) %>% 
     janitor::clean_names()
   
   s2 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
-                                  sheet = 2) %>% 
+                                  sheet = 3) %>% 
     janitor::clean_names()
   
   tibble(r1_pos = s1$positive_affect_1_5[row_indices], 
