@@ -861,4 +861,9 @@ validation_master <- function(d){
            icc = irr::icc(d[, c("ss_neg", "consensus_neg")])$value,
            kappa = irr::kappa2(d[, c("ss_neg", "consensus_neg")], weight = "squared")$value)
   )
+  d2 <- d[!is.na(d$tidytext_binary),]
+  d2$sum_binary <- d2[,c("ss_binary", "liwc_binary", "tidytext_binary")] %>% apply(2, as.numeric) %>% rowSums
+  d2$combined_binary <- ifelse(d2$sum_binary >= 2, 1, 0) %>% as.factor
+  caret::confusionMatrix(data=d2$consensus_binary, reference=d2$combined_binary) %>% print
 }
+
