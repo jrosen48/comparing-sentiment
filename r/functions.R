@@ -66,6 +66,8 @@ add_liwc <- function(d, liwc_data){
     left_join(liwc_data) %>%
     rename(liwc_pos = posemo, liwc_neg = negemo)
   d$liwc_scale <- d$liwc_pos - d$liwc_neg
+  d$liwc_pos_scaled <- d$liwc_pos %>% scale()
+  d$liwc_neg_scaled <- d$liwc_neg %>% scale()  
   d$liwc_scale_scaled <- d$liwc_scale %>% scale()
   d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
   return(d)
@@ -279,9 +281,17 @@ create_tidytext_binaries <- function(d){  # for validation of hand-coding
 }
 
 scale_tidytext_scales <- function(d){
+  d$bing_pos_scaled <- scale(d$bing_pos)
+  d$bing_neg_scaled <- scale(d$bing_neg)
   d$bing_scale_scaled <- scale(d$bing_scale)
+  d$afinn_pos_scaled <- scale(d$afinn_pos)
+  d$afinn_neg_scaled <- scale(d$afinn_neg)
   d$afinn_scale_scaled <- scale(d$afinn_scale)
+  d$loughran_pos_scaled <- scale(d$loughran_pos)
+  d$loughran_neg_scaled <- scale(d$loughran_neg)
   d$loughran_scale_scaled <- scale(d$loughran_scale)
+  d$nrc_pos_scaled <- scale(d$nrc_pos)
+  d$nrc_neg_scaled <- scale(d$nrc_neg)
   d$nrc_scale_scaled <- scale(d$nrc_scale)
   d$tidytext_pos_scaled <- scale(d$tidytext_pos)
   d$tidytext_neg_scaled <- scale(d$tidytext_neg)
@@ -506,116 +516,7 @@ save_final_dataset <- function(d){
   return(here::here("data", "data_final.rds"))
 }
 
-##### DESCRIPTIVES #####
-
-# to be continued...
-
-# Sample
-
-descriptives_sample <- function(d){
-  print("descriptives_sample")
-  print(nrow(d))
-  print(d$user_id %>% unique() %>% length())
-  print(sum(d$q == "#NGSSchat"))
-}
-
-# Dictionary coverage
-
-descriptives_coverage <- function(d){
-  print("descriptives_coverage")
-  print((d$bing_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print((d$afinn_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print((d$loughran_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print((d$nrc_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print((d$tidytext_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2)) # great coverage
-}
-
-# Ambiguity statistic and plausibility checks
-
-descriptives_ambiguity <- function(d){
-  print("descriptives_ambiguity")
-  print(d$ss_ambi %>% summary())
-  print(d$liwc_ambi %>% summary())
-  print(d$tidytext_ambi %>% summary())  # liwc and tidytext both have outliers, ss truncates
-  
-  print(cbind(d$ss_ambi, d$liwc_ambi, d$tidytext_ambi) %>% cor(use="pairwise.complete.obs")) # liwc again closer to dicts
-}
-
-# Sentiment scale correlations
-
-descriptives_scale_correlations <- function(d){
-  print("descriptives_scale_correlations")
-  print(cbind(d$ss_scale, d$liwc_scale, d$tidytext_scale) %>% cor(use="pairwise.complete.obs")) # scales closer than ambiguity
-}
-
-# Normality checks
-
-# Wordclouds for different scale values
-
-# Hand coding confusion matrices validation, compare to discrepancy and ambiguity checks
-
-# Discrepancy magnitude and order, which scales are closer together?
-
-descriptives_disc_pairs <- function(d){
-  print("descriptives_disc_pairs")
-  ind <- grep("discrepancy", names(d))
-  
-  mean_disc <- NULL
-  
-  for (i in ind){
-    mean_disc <- rbind(mean_disc, cbind(names(d)[i], d[,i] %>% unlist %>% mean(na.rm=T)))
-  }
-  
-  mean_disc[,2] <- mean_disc[,2] %>% as.numeric() %>% sqrt()  # to interpret as sd difference, test also leaving out ^2 to the direction of bias
-  mean_disc <- mean_disc[order(mean_disc[,2]),]
-  
-  print(mean_disc)  # ss and liwc rather inconsistent, liwc closer to tidytext than ss, tidytext closest dict to ss+liwc
-}
-
-discrepancy_context_by_method <- function(d){
-  print("discrepancy_context_by_method")
-  print(aggregate(total_discrepancy %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_liwc_discrepancy %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_tidytext_discrepancy %>% unlist() ~ q, d, mean))
-  print(aggregate(liwc_tidytext_discrepancy %>% unlist() ~ q, d, mean))
-}
-
-ambiguity_context_by_method <- function(d){
-  print("ambiguity_context_by_method")
-  print(aggregate(ss_ambi ~ q, d, mean))
-  print(aggregate(liwc_ambi ~ q, d, mean))
-  print(aggregate(tidytext_ambi ~ q, d, mean))
-}
-
-descriptives_master <- function(d){
-  d %>%
-    descriptives_sample()
-  d %>%
-    descriptives_coverage()
-  d %>%
-    descriptives_ambiguity()
-  d %>%
-    descriptives_scale_correlations()
-  d %>%
-    descriptives_disc_pairs()
-  d %>%
-    discrepancy_context_by_method()
-  d %>%
-    ambiguity_context_by_method()
-}
-
-##### ANALYSIS #####
-
-analysis_master <- function(d){   # just an example
-  print("analysis_master")
-  print(cor.test(d$total_discrepancy, d$nwords))
-  print(cor.test(d$total_discrepancy, d$nchar))
-  print(cor.test(d$total_discrepancy, d$favorite_count))
-  print(cor.test(d$total_discrepancy, d$retweet_count))
-  print(cor.test(d$total_discrepancy, d$ss_ambi))
-  print(cor.test(d$total_discrepancy, d$liwc_ambi))
-  print(cor.test(d$total_discrepancy, d$tidytext_ambi))  # wow! we need to check cook's distance of these
-}
+##### JOSH FUNCTIONS ######
 
 extract_status_ids <- function(d) {
   statuses <- d$status_url %>% str_split("/") %>% map_chr(~.[6])
@@ -630,114 +531,6 @@ read_liwc_and_rename_input_cols <- function(path) {
   d
 }
 
-get_replies_recursive <- function(statuses) {
-  
-  statuses <- statuses[!is.na(statuses)]
-  
-  new_data <- rtweet::lookup_statuses(statuses)
-  
-  print(paste0("In this iteration, accessed ", nrow(new_data), " new Tweets"))
-  
-  new_statuses <- new_data$reply_to_status_id[!is.na(new_data$reply_to_status_id)]
-  
-  if (length(new_statuses) > 0) { # if there are replies to statuses not yet in the data
-    new_data_recursive <- get_replies_recursive(new_statuses) # get the tweets that were replied to
-    out_data <- bind_rows(new_data, new_data_recursive) # and bind together the replies and the original tweets
-  } else { # if there are no replies left to get
-    return(new_data) # return the replies
-  }
-}
-
-thread_finder <- function(status_id, d, out_statuses = NULL) {
-  
-  status_is_a_reply_to <- as.character(d[d$status_id == status_id, ]$reply_to_status_id)
-  
-  status_is_a_reply_to <- ifelse(length(status_is_a_reply_to) == 0, NA, status_is_a_reply_to)
-  
-  if (!is.na(status_is_a_reply_to)) {
-    
-    if (is.null(out_statuses)) {
-      out_statuses <- c(status_id, status_is_a_reply_to)  
-    } else {
-      out_statuses <- c(out_statuses, status_is_a_reply_to)
-    }
-    
-    thread_finder(status_is_a_reply_to, d, out_statuses)  
-  } else {
-    out_statuses
-  }
-}
-
-remove_short_threads <- function(thread, d, i) {
-  same_thread <- which(str_detect(d$thread_string, thread))
-  
-  same_thread_df <- d[same_thread, "thread_string"]
-  
-  same_thread_df <- same_thread_df %>%
-    mutate(length_of_string = nchar(thread_string)) %>%
-    arrange(desc(length_of_string))
-  
-  the_longest_thread <- pull(same_thread_df[1, "thread_string"])
-  
-  if (!(the_longest_thread == thread)) {
-    remove_short_threads(the_longest_thread, d = d, i = i)
-  } else {
-    the_longest_thread
-  }
-}
-
-identify_threads <- function(d) {
-  threads <- map(d$status_id, thread_finder, d = d)
-  
-  thread_list <- tibble(ID = 1:length(threads),
-                        thread = threads)
-  
-  thread_df <- thread_list %>% 
-    unnest(thread) %>% 
-    group_by(ID) %>% 
-    mutate(thread_string = toString(thread)) %>% 
-    select(ID, thread_string) %>% 
-    distinct(thread_string, .keep_all = TRUE) %>% 
-    ungroup() %>% 
-    mutate(row_number = 1:nrow(.))
-  
-  # not necessary in this case, but necessary in some - same n as before
-  thread_df <- thread_df %>% 
-    unique()
-  
-  # recursively searching for shorter version of longer threads
-  # 513 unique threads because some are shorter versions of longer ones
-  shorter_thread_list <- map2(.x = thread_df$thread_string, .f = remove_short_threads, d = thread_df, .y = 1:nrow(thread_df))
-  
-  # this creates a df with every status ID and what thread they're part of
-  new_thread_df <- tibble(ID = 1:length(shorter_thread_list),
-                          thread_string = map_chr(shorter_thread_list, ~.)) %>% 
-    select(-ID) %>% # this gets rid of our old ID
-    left_join(thread_df, by = "thread_string") %>% 
-    select(ID, thread_string) %>% # this uses the ID from our larger df
-    mutate(thread_string = str_split(thread_string, ", ")) %>% 
-    unnest(thread_string) %>% 
-    rename(status_id = thread_string) %>%
-    group_by(status_id) %>% 
-    summarize(id_string = toString(ID)) %>% 
-    mutate(id_string = str_split(id_string, ", ")) %>% 
-    unnest(id_string) %>% 
-    mutate(status_id = as.character(status_id)) %>% 
-    mutate(id_string = str_pad(id_string, 4, pad = "0")) %>% 
-    mutate(status_id = as.character(status_id)) %>% 
-    distinct() %>% 
-    arrange(id_string)
-  
-  # putting together the final dataset
-  out_df <- d %>% 
-    left_join(new_thread_df, by = "status_id") %>% 
-    arrange(id_string)
-  
-  out_df <- out_df %>% 
-    select(status_id, id_string)
-  
-  out_df
-}
 
 join_id_string <- function(d, d_with_id) {
   left_join(d, d_with_id, by = "status_id")
@@ -964,3 +757,4 @@ join_raw_and_google_sheets_data <- function(raw_data) {
   bind_cols(raw_data, s1)
   
 }
+

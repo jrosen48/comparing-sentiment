@@ -23,10 +23,7 @@ targets <- list(
   tar_target(additional_data_file, here::here("data", "state-based-twitter-hashtags-raw-data.rds")),
   tar_target(additional_data, readRDS(additional_data_file)),
   tar_target(additional_data_prepared, additional_data %>% additional_data_prep()),
-  
-  #tar_target(raw_data_combined, merge_additional_files(raw_data, additional_data_prepared)),
-  #tar_target(write_raw_data_combined_for_liwc, raw_data_combined %>% select(status_id, text) %>% write_csv(here("data-sentiment", "raw-data-combined-for-liwc.csv"))),
-  
+   
   tar_target(liwc_file_path, here::here("data-sentiment", "raw-data-combined-for-liwc-results.csv"), format = "file"),
   tar_target(liwc_data, read_liwc_and_rename_input_cols(liwc_file_path)),
   
@@ -44,6 +41,21 @@ targets <- list(
   tar_target(teacher_class_data, read.csv(teacher_class_file) %>% rename(is_teacher=prediction_by_keywords)), 
   
   tar_target(raw_with_external, add_external_master(match_liwc_to_raw_data, ss_scale_data, ss_binary_data, teacher_class_data)),
+  
+  ######
+  # Josh, these targets did not exist in my current pipline:
+  #tar_target(file_to_upload_to_liwc, write_file_for_liwc(raw_data)),
+  #tar_target(state_hashtags_file, here::here("data", "state-based-twitter-hashtags-raw-data.rds"), format = "file"),
+  #tar_target(state_hashtags_data, readRDS(state_hashtags_file)),
+  #tar_target(state_hashtags_file_to_upload_to_liwc, write_state_hashtags_file_for_liwc(state_hashtags_data)),
+  #tar_target(ngss_liwc_file, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
+  #tar_target(liwc_data, read_liwc_and_rename_input_cols(ngss_liwc_file)),
+  #tar_target(raw_data_combined, merge_additional_files(raw_data, additional_data_prepared)),
+  #tar_target(write_raw_data_combined_for_liwc, raw_data_combined %>% select(status_id, text) %>% write_csv(here("data-sentiment", "raw-data-combined-for-liwc.csv"))),
+  ######
+  
+  tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, teacher_class_data)),
+
   tar_target(clean_data_file, raw_with_external %>% clean_master(), format = "file"),
   tar_target(clean_data, readRDS(clean_data_file)),
 
@@ -53,7 +65,18 @@ targets <- list(
   tar_target(data_discrepancy, data_context %>% discrepancy_master()),
 
   tar_target(final_data_file, data_discrepancy %>% save_final_dataset(), format = "file"),
-  tar_target(final_data, readRDS(final_data_file)),
+  tar_target(final_data, readRDS(final_data_file)) ,
+  
+  # manual coding reliability
+  tar_target(file_for_state_sample_for_qual_coding, here("data", "sample-of-state-tweets-for-qual-coding.csv")),
+  tar_target(joined_state_sample_for_qual_coding, join_raw_and_google_sheets_data(file_for_state_sample_for_qual_coding)),
+  
+  tar_target(agree_df_1_20, access_manual_coding_data(1:20)), # row indices are for the first 20 rows manually coded; will pdate as we 
+  tar_target(agree_statistics_1_20, calculate_manual_agreement(agree_df_1_20)),
+  tar_target(agree_df_21_45, access_manual_coding_data(21:45)),
+  tar_target(agree_statistics_21_45, calculate_manual_agreement(agree_df_21_45)),
+  tar_target(agree_df_states_1_20, access_manual_coding_data_state_data(1:20)),
+  tar_target(agree_statistics_states_1_20, calculate_manual_agreement(agree_df_states_1_20)),
 
   # manual coding reliability
   tar_target(file_for_state_sample_for_qual_coding, here("data", "sample-of-state-tweets-for-qual-coding.csv")),
@@ -74,11 +97,12 @@ targets <- list(
   tar_target(consensus_with_software_ratings, combine_coding_and_software_ratings(consensus_manual_codes, final_data)),
   
   tar_target(validation, consensus_with_software_ratings %>% validation_master)
-  
-  # tar_target(agree_df_first_1_20, access_manual_coding_data(1:20)), 
-  # tar_target(agree_statistics, calculate_manual_agreement(agree_df_1_20))
-  
-  
+ 
+  # Descriptives and results in seperate Rmd Files in root folder for now
+
+  #tar_target(descriptives, final_data %>% descriptives_master()),
+  #tar_target(analysis, final_data %>% analysis_master())
+
 )
 
 # End with a call to tar_pipeline() to wrangle the targets together.

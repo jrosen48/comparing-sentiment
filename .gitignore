@@ -16,4 +16,5 @@ _targets/meta/
 
 _targets/objects/
 
-state-hashtags-liwc-results.csv.zip
+
+*.zip
