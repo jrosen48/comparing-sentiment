@@ -8,11 +8,13 @@
 *.rds
 *.csv
 *.txt
+*.html
 
 SentiStrengthJavaManual.doc
 
 _targets/meta/
 
 _targets/objects/
+
 
 *.zip

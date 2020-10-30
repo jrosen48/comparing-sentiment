@@ -34,18 +34,14 @@ rm(final_data)
 * is_quote
 * favorite_count
 * retweet_count
-* quote_count
-* reply_count
 * lang: only languages that were recognized as English by Twitter's AI were included in final data set
 * nchar: number of character of text_clean
 * nwords: number of word of text_clean
 
 ### User level
 
-* followers_count: number of followers of user at time of download (dl_at)
-* friends_count: number of followed users of user at time of download (dl_at)
-* listed_count: number of affiliated lists of user at time of download (dl_at)
 * is_teacher: 1 if user was classified as teacher by our ML model by his bio at time of download (dl_at) with ambiguous classifications over time randomized and standardized across measurement points
+* description: user's bio on which teacher classification was based on (with the exception of changing bios over time that elicited both classifications as teacher and as non-teacher which where later randomized)
 
 ### Context variables
 
@@ -78,7 +74,6 @@ d %>%
   select(status_id, user_id,
          created_at, dl_at,
          favorite_count, retweet_count,
-         followers_count, friends_count,
          nchar, nwords,
          is_teacher, isChat, q,
          ss_binary, liwc_binary, tidytext_binary,
@@ -251,6 +246,51 @@ d %>% select(
   knitr::kable(digits = 2)
 ```
 
+## Sentiment Ratio (SentiStrenght, as in AERA open paper) by context
+
+```{r}
+d %>% select(
+  "ss_binary",
+  "q"
+  ) %>% 
+  group_by(q, ss_binary) %>%
+  count() %>%
+  ungroup() %>%
+  spread(ss_binary, n) %>%
+  mutate(Sentiment_Ratio = `1`/`0`) %>%
+  knitr::kable(digits = 2)
+```
+
+## Sentiment Ratio (SentiStrenght, as in AERA open paper) by teacher, non-teacher
+
+```{r}
+d %>% select(
+  "ss_binary",
+  "is_teacher"
+  ) %>% 
+  group_by(is_teacher, ss_binary) %>%
+  count() %>%
+  ungroup() %>%
+  spread(ss_binary, n) %>%
+  mutate(Sentiment_Ratio = `1`/`0`) %>%
+  knitr::kable(digits = 2)
+```
+
+## Sentiment Ratio (SentiStrenght, as in AERA open paper) by by isChat
+
+```{r}
+d %>% select(
+  "ss_binary",
+  "isChat"
+  ) %>% 
+  group_by(isChat, ss_binary) %>%
+  count() %>%
+  ungroup() %>%
+  spread(ss_binary, n) %>%
+  mutate(Sentiment_Ratio = `1`/`0`) %>%
+  knitr::kable(digits = 2)
+```
+
 ## Ambiguity by context
 
 ```{r ambiguity by context}
@@ -262,7 +302,7 @@ d %>% select(
   ) %>% 
   group_by(q) %>%
   summarise_all(mean, na.rm=T) %>%
-  knitr::kable(digits = 2)
+  knitr::kable(digits = 5)
 ```
 
 ## Ambiguity by teacher, non-teacher
@@ -276,7 +316,7 @@ d %>% select(
   ) %>% 
   group_by(is_teacher) %>%
   summarise_all(mean, na.rm=T) %>%
-  knitr::kable(digits = 2)
+  knitr::kable(digits = 5)
 ```
 
 ## Ambiguity by isChat
@@ -290,92 +330,7 @@ d %>% select(
   ) %>% 
   group_by(isChat) %>%
   summarise_all(mean, na.rm=T) %>%
-  knitr::kable(digits = 2)
-```
-
-## Ambiguity normality check and transformation
-
-### Tidytext
-
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_ambi)) +
-  geom_histogram(bins=100)
-```
-Log
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_ambi %>% log)) +
-  geom_histogram(bins=250)
-```
-Most normally distributed when log() applied
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_ambi %>% sqrt)) +
-  geom_histogram(bins=150)
-```
-### SentiStrength
-
-Always homomorphic, decreases left to right
-```{r}
-d %>% 
-  ggplot(aes(x = ss_ambi %>% sqrt)) +
-  geom_histogram()
-```
-
-### LIWC
-
-Log
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_ambi %>% log)) +
-  geom_histogram()
-```
-Sqrt
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_ambi %>% sqrt)) +
-  geom_histogram()
-```
-
-## Discrepancy normality check and transformation
-
-### Overall
-
-```{r}
-d %>% 
-  ggplot(aes(x = total_discrepancy_scale)) +
-  geom_histogram()
-```
-
-```{r}
-d %>% 
-  ggplot(aes(x = total_discrepancy_scale %>% sqrt)) +
-  geom_histogram()
-```
-
-Most like a normal-distribution when log-transformed
-
-```{r}
-d %>% 
-  ggplot(aes(x = total_discrepancy_scale %>% log)) +
-  geom_histogram()
-```
-
-### Pos
-
-```{r}
-d %>% 
-  ggplot(aes(x = total_discrepancy_pos %>% log)) +
-  geom_histogram()
-```
-
-### Neg seems to be of few use
-
-```{r}
-d %>% 
-  ggplot(aes(x = total_discrepancy_neg %>% log)) +
-  geom_histogram()
+  knitr::kable(digits = 5)
 ```
 
 ## Correlations discrepancy 
@@ -383,7 +338,7 @@ d %>%
 ```{r correlations discrepancy}
 d %>% 
   select(nchar, nwords,
-         favorite_count, followers_count,
+         favorite_count, retweet_count,
          ss_ambi, liwc_ambi, tidytext_ambi, 
          total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale
          ) %>% 
@@ -401,7 +356,7 @@ d$total_discrepancy_scale_sqrt <- d$total_discrepancy_scale %>% sqrt
 
 d %>% 
   select(nchar, nwords,
-         favorite_count, followers_count,
+         favorite_count, retweet_count,
          ss_ambi, liwc_ambi, tidytext_ambi, 
          total_discrepancy_pos_sqrt, total_discrepancy_neg_sqrt, total_discrepancy_scale_sqrt
          ) %>% 
@@ -419,7 +374,7 @@ d$total_discrepancy_scale_log <- d$total_discrepancy_scale %>% log
 
 d %>% 
   select(nchar, nwords,
-         favorite_count, followers_count,
+         favorite_count, retweet_count,
          ss_ambi, liwc_ambi, tidytext_ambi, 
          total_discrepancy_pos_log, total_discrepancy_neg_log, total_discrepancy_scale_log
          ) %>% 
@@ -430,15 +385,11 @@ d %>%
   knitr::kable(caption = "Correlates of dicrepancy measures, log-transformed")
 ```
 
-## Normality checks of sentiment variables
+## Distribution properties
 
-### sentistrength 
+## Pos
 
-```{r}
-d %>% 
-  ggplot(aes(x = ss_scale)) +
-  geom_histogram()
-```
+### SentiStrength
 
 ```{r}
 d %>% 
@@ -446,217 +397,139 @@ d %>%
   geom_histogram()
 ```
 
+### LIWC, many tweets assigned 0 for pos
+
+```{r}
+d %>% 
+  ggplot(aes(x = liwc_pos)) +
+  geom_histogram(bins=100)
+```
+
+### Tidytext
+
+```{r}
+d %>% 
+  ggplot(aes(x = tidytext_pos)) +
+  geom_histogram(bins=100)
+```
+
+## Neg
+
+### SentiStrength
+
 ```{r}
 d %>% 
   ggplot(aes(x = ss_neg)) +
   geom_histogram()
 ```
 
-### tidytext
+### LIWC
 
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_scale)) +
-  geom_histogram(bins = 100)
-```
-
-```{r}
-d %>% 
-  ggplot(aes(x = log(tidytext_scale + 1))) +
-  geom_histogram(bins = 100)
-```
-
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_pos)) +
-  geom_histogram()
-```
-
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_neg)) +
-  geom_histogram()
-```
-
-### liwc
-
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_scale)) +
-  geom_histogram()
-```
-
-with a log transformation
-
-```{r}
-d %>% 
-  ggplot(aes(x = log(liwc_scale + 1))) +
-  geom_histogram()
-```
-
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_pos)) +
-  geom_histogram()
-```
-
+### Many tweets assigned 0 for neg
 ```{r}
 d %>% 
   ggplot(aes(x = liwc_neg)) +
   geom_histogram()
 ```
 
-## Visualizing discrepancy
+### Without 0s
 
-### Total scale disc ~ nwords
-
-```{r, Total scale disc ~ nwords}
-#library(extrafont)
-#loadfonts(device="win")
+```{r}
 d %>% 
-  ggplot(aes(x = nwords, y = total_discrepancy_scale)) +
-  geom_smooth() + 
-  theme_bw() +
-  xlab("Number of words") + 
-  ylab("Total squared discrepancy of overall sentiment scales") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = liwc_neg)) +
+  geom_histogram(bins=150) +
+  ylim(0, 15000) + 
+  xlim(0, 15)
 ```
 
-### Mean total scale disc ~ ss_ambi
+### Tidytext, simlar story, many 0s for neg
 
-```{r, Mean total scale disc ~ ss_ambi}
+```{r}
 d %>% 
-  select(ss_ambi, total_discrepancy_scale) %>%
-  group_by(ss_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = ss_ambi, y = total_discrepancy_scale)) +
-  geom_bar(stat="identity") + 
-  theme_bw() +
-  xlab("Ambiguity SentiStrength (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = tidytext_neg)) +
+  geom_histogram(bins=150)
 ```
 
-### Mean total scale disc ~ liwc_ambi
+## Ambiguity
 
-```{r, Mean total scale disc ~ liwc_ambi}
+### Tidytext
+
+```{r}
 d %>% 
-  select(liwc_ambi, total_discrepancy_scale) %>%
-  group_by(liwc_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = liwc_ambi, y = total_discrepancy_scale)) +
-  geom_point() + 
-  theme_bw() +
-  xlab("Ambiguity LIWC (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = tidytext_ambi)) +
+  geom_histogram(bins=150) +
+  xlim(0, 0.5) + 
+  ylim(0, 50000)
+```
+```
+### SentiStrength
+
+```{r}
+d %>% 
+  ggplot(aes(x = ss_ambi)) +
+  geom_histogram()
 ```
 
-### Mean total scale disc ~ tidytext_ambi
+### LIWC
 
-```{r, Mean total scale disc ~ tidytext_ambi}
+```{r}
 d %>% 
-  select(tidytext_ambi, total_discrepancy_scale) %>%
-  group_by(tidytext_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = tidytext_ambi, y = total_discrepancy_scale)) +
-  geom_point() + 
-  theme_bw() +
-  xlab("Ambiguity Tidytext (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = liwc_ambi)) +
+  geom_histogram(bins=150) +
+  ylim(0, 50000) +
+  xlim(0, 40)
 ```
 
-## Apply sqrt() to dicrepancy values
+## Scale, holds many 0 and slightly positive tweets
 
-### Mean total scale disc ~ ss_ambi
+### SentiStrength
 
-```{r, Mean total scale disc ~ ss_ambi 2}
+```{r}
 d %>% 
-  select(ss_ambi, total_discrepancy_scale) %>%
-  group_by(ss_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = ss_ambi, y = total_discrepancy_scale %>% sqrt)) +
-  geom_bar(stat="identity") + 
-  theme_bw() +
-  xlab("Ambiguity SentiStrength (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = ss_scale)) +
+  geom_histogram()
 ```
 
-### Mean total scale disc ~ liwc_ambi
+### LIWC
 
-```{r, Mean total scale disc ~ liwc_ambi 2}
+```{r}
 d %>% 
-  select(liwc_ambi, total_discrepancy_scale) %>%
-  group_by(liwc_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = liwc_ambi, y = total_discrepancy_scale %>% sqrt)) +
-  geom_point() + 
-  theme_bw() +
-  xlab("Ambiguity LIWC (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = liwc_scale)) +
+  geom_histogram(bins=30)
 ```
 
-### Mean total scale disc ~ tidytext_ambi
+### Tidytext
 
-```{r, Mean total scale disc ~ tidytext_ambi 2}
+```{r}
 d %>% 
-  select(tidytext_ambi, total_discrepancy_scale) %>%
-  group_by(tidytext_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = tidytext_ambi, y = total_discrepancy_scale %>% sqrt)) +
-  geom_point() + 
-  theme_bw() +
-  xlab("Ambiguity Tidytext (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = tidytext_scale)) +
+  geom_histogram(bins=100)
 ```
 
-## Apply log() to dicrepancy values
+## Discrepancy
 
-### Mean total scale disc ~ ss_ambi
+### Overall, right skwwed but quite normally distributed
 
-```{r, Mean total scale disc ~ ss_ambi 3}
+```{r}
 d %>% 
-  select(ss_ambi, total_discrepancy_scale) %>%
-  group_by(ss_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = ss_ambi, y = total_discrepancy_scale %>% log)) +
-  geom_bar(stat="identity") + 
-  theme_bw() +
-  xlab("Ambiguity SentiStrength (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = total_discrepancy_scale)) +
+  geom_histogram(bins=300)
 ```
 
-### Mean total scale disc ~ liwc_ambi
+### Pos, right skwwed but quite normally distributed
 
-```{r, Mean total scale disc ~ liwc_ambi 3}
+```{r}
 d %>% 
-  select(liwc_ambi, total_discrepancy_scale) %>%
-  group_by(liwc_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = liwc_ambi, y = total_discrepancy_scale %>% log)) +
-  geom_point() + 
-  theme_bw() +
-  xlab("Ambiguity LIWC (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = total_discrepancy_pos)) +
+  geom_histogram(bins=300)
 ```
 
-### Mean total scale disc ~ tidytext_ambi
+### Neg, very right skewed and not normally distributed due to many 0 assignments for negativity
 
-```{r, Mean total scale disc ~ tidytext_ambi 3}
+```{r}
 d %>% 
-  select(tidytext_ambi, total_discrepancy_scale) %>%
-  group_by(tidytext_ambi) %>%
-  summarise_all(mean, na.rm=T) %>%
-  ggplot(aes(x = tidytext_ambi, y = total_discrepancy_scale %>% log)) +
-  geom_point() + 
-  theme_bw() +
-  xlab("Ambiguity Tidytext (unique values)") + 
-  ylab("Mean total discrepancy of overall scale methods") #+
-  #theme(text=element_text(family="Times New Roman", size=12)) 
+  ggplot(aes(x = total_discrepancy_neg)) +
+  geom_histogram(bins=100)
 ```
+
+

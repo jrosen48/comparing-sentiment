@@ -1,5 +1,20 @@
 ##### READING IN AND COMBINING RAW DATA FILES #####
 
+additional_data_prep <- function(d){
+  return(
+    d %>% select(c("status_id", "created_at"))
+  )
+}
+
+remove_variables <- function(d){
+  return(
+    d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
+                   "is_retweet", "is_quote", 
+                   "favorite_count", "retweet_count", "lang", "description" 
+                   ))
+  )
+}
+
 create_raw_data <- function(){
   fns <- dir(here::here("data-raw"), pattern=".rda")
   i <- 1
@@ -7,7 +22,7 @@ create_raw_data <- function(){
   for (fn in fns){
     load(here::here("data-raw", fn))
     tweets_dl$dl_at <- file.info(here::here("data-raw", fn))$mtime
-    object_list[[i]] <- tweets_dl
+    object_list[[i]] <- tweets_dl %>% remove_variables()
     i <- i+1
     cat("\014", round(which(fn == fns)/length(fns)*100, 0), "% files read in\n")
   }
@@ -16,6 +31,21 @@ create_raw_data <- function(){
   d <- d[!duplicated(d$status_id),]
   saveRDS(d, here::here("data", "data_raw.rds"))
   return(here::here("data", "data_raw.rds"))
+}
+
+merge_additional_files <- function(d_raw, d_additional){
+  d_raw <- rbind(d_raw, d_additional)
+  d_raw <- d_raw[order(d_raw$created_at),]
+  d_raw <- d_raw[!duplicated(d_raw$status_id),]
+  return(d_raw)
+}
+
+combine_liwc_dfs <- function(d1, d2){
+  d1 <- d1 %>% select(status_id, posemo, negemo)
+  d2 <- d2 %>% select(status_id, posemo, negemo)
+  d1 <- rbind(d1, d2)
+  d1 <- d1 <- d1[!duplicated(d1$status_id),]
+  return(d1)
 }
 
 ##### ADD EXTERNAL SENTIMENT DATA #####
@@ -32,8 +62,9 @@ add_sentistrength <- function(d, ss_scale_data, ss_binary_data){
 }
 
 add_liwc <- function(d, liwc_data){
-  d$liwc_pos <- liwc_data$posemo
-  d$liwc_neg <- liwc_data$negemo
+  d <- d %>% 
+    left_join(liwc_data) %>%
+    rename(liwc_pos = posemo, liwc_neg = negemo)
   d$liwc_scale <- d$liwc_pos - d$liwc_neg
   d$liwc_pos_scaled <- d$liwc_pos %>% scale()
   d$liwc_neg_scaled <- d$liwc_neg %>% scale()  
@@ -57,27 +88,35 @@ add_is_teacher <- function(d, teacher_class_data){
   return(d)
 }
 
-add_external_master <- function(d, ss_scale_data, ss_binary_data, liwc_data, teacher_class_data){
+add_external_master <- function(d, ss_scale_data, ss_binary_data, teacher_class_data){
   return(
     d %>%
       add_sentistrength(ss_scale_data=ss_scale_data, ss_binary_data=ss_binary_data) %>%
-      add_liwc(liwc_data=liwc_data)  %>%
       add_is_teacher(teacher_class_data=teacher_class_data)
   )
 }
 
-##### Cleaning Data #####
-
-remove_variables <- function(d){
-  return(
-    d %>% select(c("status_id", "user_id", "text", "created_at", "dl_at",
-                   "is_retweet", "is_quote", "reply_to_status_id", "reply_to_user_id",
-                   "favorite_count", "retweet_count", "quote_count", "reply_count", "lang", # tweet level
-                   "followers_count", "friends_count", "listed_count", "is_teacher", # user level
-                   "ss_pos", "ss_pos_scaled", "ss_neg", "ss_neg_scaled", "ss_scale", "ss_scale_scaled", "ss_binary", # sentistrength sentiment
-                   "liwc_pos", "liwc_pos_scaled", "liwc_neg", "liwc_neg_scaled", "liwc_scale", "liwc_scale_scaled", "liwc_binary")) # liwc sentiment
-  )
+add_liwc_to_additional_data <- function(d, d_liwc){
+  d$liwc_pos <- d_liwc$posemo
+  d$liwc_neg <- d_liwc$negemo
+  d$liwc_scale <- d$liwc_pos - d$liwc_neg
+  d$liwc_pos_scaled <- d$liwc_pos %>% scale()
+  d$liwc_neg_scaled <- d$liwc_neg %>% scale()
+  d$liwc_scale_scaled <- d$liwc_scale %>% scale()
+  d$liwc_binary <- ifelse(d$liwc_scale >= 0, 1, 0)
+  return(d)
 }
+
+create_matching_df <- function(d_raw, d_additional){
+  d_raw <- d_raw[d_raw$dl_at < "2020-10-22 00:00:00 CEST",] %>% 
+    select(status_id, created_at)
+  out <- rbind(d_raw, d_additional)
+  out <- out[order(out$created_at),]
+  out <- out[!duplicated(out$status_id),]
+  return(out %>% select(status_id))
+}
+
+##### Cleaning Data #####
 
 preprocess_text <- function(d){
   d$text_clean <- d$text %>% 
@@ -100,7 +139,6 @@ remove_langs <- function(d){
 
 clean_master <- function(d){
   d <- d %>%
-    remove_variables() %>%
     preprocess_text() %>%
     remove_langs()
   saveRDS(d, here::here("data", "data_clean.rds"))
@@ -284,8 +322,9 @@ add_q <- function(d){
   has_ngss <- grep("\\#ngss\\b|\\bngss\\b", text_small)
   d$q <- rep(NA, nrow(d))
   d$q[has_ngsschat] <- "#NGSSchat"
-  d$q[base::setdiff(has_ngss, has_ngsschat)] <- "ngss"  # fill in ngss withough #ngsschat
-  d$q[base::setdiff(1:nrow(d), unique(c(has_ngss, has_ngsschat)))] <- "other" # fill in remaining
+  d$q[base::setdiff(has_ngss, has_ngsschat)] <- "ngss"
+  d$q[which(d$dl_at > "2020-10-22 00:00:00 CEST")] <- "state-based-hashtags" # recent additions
+  d$q[which(is.na(d$q))] <- "other" # fill in remaining
   d$q <- as.factor(d$q)
   return(d)
 }
@@ -379,6 +418,7 @@ context_master <- function(d){
   )
 }
 
+
 ##### DISCREPANCY VARIABLES #####
 
 get_scales <- function(scale = "scale", scaled = TRUE){
@@ -406,7 +446,7 @@ add_pairwise_disc <- function(d, scale = "scale", scaled = TRUE){
       combinations[i, 2] %>% strsplit("_") %>% unlist() %>% head(1), 
       "discrepancy", scale, sep="_"
     )
-    d$temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2
+    d$temp <- abs(d[,combinations[i, 1]] - d[,combinations[i, 2]])
     names(d)[names(d) == "temp"] <- name
   }
   return(d)
@@ -422,7 +462,7 @@ add_total_disc <- function(d, scale = "scale", scaled = TRUE){
   n_combs <- rep(0, nrow(d))
   
   for (i in 1:nrow(combinations)){  
-    temp <- (d[,combinations[i, 1]] - d[,combinations[i, 2]])^2 %>% unlist() %>% as.numeric()
+    temp <- abs(d[,combinations[i, 1]] - d[,combinations[i, 2]]) %>% unlist() %>% as.numeric()
     the_sum[which(!is.na(temp))] <- the_sum[which(!is.na(temp))] + temp[which(!is.na(temp))]
     n_combs[which(!is.na(temp))] <- n_combs[which(!is.na(temp))] + 1 # += 1 for available combination 
   } 
@@ -476,199 +516,6 @@ save_final_dataset <- function(d){
   return(here::here("data", "data_final.rds"))
 }
 
-##### DESCRIPTIVES #####
-
-# to be continued...
-
-# Sample
-
-descriptives_sample <- function(d){
-  print("descriptives_sample, data cleaned for English lang")
-  print("Number of unique tweets:")
-  print(nrow(d))
-  print("Number of unique users:")
-  print(d$user_id %>% unique() %>% length())
-  print("Number of unique tweets with #NGSSchat:")
-  print(sum(d$q == "#NGSSchat"))
-  print("Number of unique tweets with ngss:")
-  print(sum(d$q == "ngss"))
-  print("Number of unique tweets with other search terms:")
-  print(sum(d$q == "other"))
-}
-
-# Dictionary coverage
-
-descriptives_coverage <- function(d){
-  print("descriptives_coverage")
-  print("bing")
-  print((d$bing_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print("afinn")
-  print((d$afinn_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print("loughran")
-  print((d$loughran_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print("nrc")
-  print((d$nrc_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print("tidytext_scale")
-  print((d$tidytext_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2)) # great coverage
-}
-
-# Ambiguity statistic and plausibility checks
-
-descriptives_ambiguity <- function(d){
-  print("descriptives_ambiguity")
-  print(d$ss_ambi %>% summary())
-  print(d$liwc_ambi %>% summary())
-  print(d$tidytext_ambi %>% summary())  # liwc and tidytext both have outliers, ss truncates
-  print(cbind(d$ss_ambi, d$liwc_ambi, d$tidytext_ambi) %>% cor(use="pairwise.complete.obs") %>%
-          `colnames<-`(c("ss", "liwc", "tt")) %>% `rownames<-`(c("ss", "liwc", "tt"))) 
-}
-
-# Sentiment scale correlations
-
-descriptives_scale_correlations <- function(d){   # side-note: does not change when variables are scaled
-  print("descriptives_scale_correlations")
-  print("pos")
-  print(cbind(d$ss_pos, d$liwc_pos, d$tidytext_pos) %>% cor(use="pairwise.complete.obs" )%>%
-          `colnames<-`(c("ss", "liwc", "tt")) %>% `rownames<-`(c("ss", "liwc", "tt")) %>% round(2)) 
-  print("neg")
-  print(cbind(d$ss_neg, d$liwc_neg, d$tidytext_neg) %>% cor(use="pairwise.complete.obs" )%>%
-          `colnames<-`(c("ss", "liwc", "tt")) %>% `rownames<-`(c("ss", "liwc", "tt")) %>% round(2)) 
-  print("scale")
-  print(cbind(d$ss_scale, d$liwc_scale, d$tidytext_scale) %>% cor(use="pairwise.complete.obs" )%>%
-          `colnames<-`(c("ss", "liwc", "tt")) %>% `rownames<-`(c("ss", "liwc", "tt")) %>% round(2)) 
-}
-
-
-# Normality checks
-
-# Wordclouds for different scale values
-
-# Hand coding confusion matrices validation, compare to discrepancy and ambiguity checks
-
-# Discrepancy magnitude and order, which scales are closer together?
-
-descriptives_disc_pairs <- function(d, variable_string){
-  print("descriptives_disc_pairs")
-  print(variable_string)
-  ind <- grep(variable_string, names(d))
-  
-  mean_disc <- NULL
-  
-  for (i in ind){
-    mean_disc <- rbind(mean_disc, cbind(names(d)[i], d[,i] %>% unlist %>% mean(na.rm=T)))
-  }
-  
-  mean_disc[,2] <- mean_disc[,2] %>% as.numeric() %>%
-    # sqrt()  %>% # to interpret as sd difference, test also leaving out ^2 to the direction of bias
-    round(2)
-  mean_disc <- mean_disc[order(mean_disc[,2]),]
-  
-  print(mean_disc)  # ss and liwc rather inconsistent, liwc closer to tidytext than ss, tidytext closest dict to ss+liwc
-}
-
-discrepancy_context_by_method <- function(d){
-  print("discrepancy_context_by_method")
-  print("pos")
-  print(aggregate(total_discrepancy_pos %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_liwc_discrepancy_pos %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_tidytext_discrepancy_pos %>% unlist() ~ q, d, mean))
-  print(aggregate(liwc_tidytext_discrepancy_pos %>% unlist() ~ q, d, mean))
-  print("neg")
-  print(aggregate(total_discrepancy_neg %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_liwc_discrepancy_neg %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_tidytext_discrepancy_neg %>% unlist() ~ q, d, mean))
-  print(aggregate(liwc_tidytext_discrepancy_neg %>% unlist() ~ q, d, mean))
-  print("scale")
-  print(aggregate(total_discrepancy_scale %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_liwc_discrepancy_scale %>% unlist() ~ q, d, mean))
-  print(aggregate(ss_tidytext_discrepancy_scale %>% unlist() ~ q, d, mean))
-  print(aggregate(liwc_tidytext_discrepancy_scale %>% unlist() ~ q, d, mean))
-}
-
-ambiguity_context_by_method <- function(d){
-  print("ambiguity_context_by_method")
-  print(aggregate(ss_ambi ~ q, d, mean))
-  print(aggregate(liwc_ambi ~ q, d, mean))
-  print(aggregate(tidytext_ambi ~ q, d, mean))
-}
-
-descriptives_master <- function(d){  # note: add skimr::skim() and normality checks
-  d %>%
-    descriptives_sample()
-  d %>%
-    descriptives_coverage()
-  d %>%
-    descriptives_ambiguity()
-  d %>%
-    descriptives_scale_correlations()
-  d %>%
-    descriptives_disc_pairs(variable_string="discrepancy_pos")
-  d %>%
-    descriptives_disc_pairs(variable_string="discrepancy_neg")
-  d %>%
-    descriptives_disc_pairs(variable_string="discrepancy_scale")
-  d %>%
-    discrepancy_context_by_method()
-  d %>%
-    ambiguity_context_by_method()
-}
-
-##### ANALYSIS #####
-
-analysis_master <- function(d){   # just an example
-  d %>%
-    cor_testing()
-  #d %>%
-  # modeling()  evaluate best with targets::tar_load("final_data") | d <- final_data
-}
-
-cor_testing <- function(d){
-  print("testing correlations")
-  print("pos")
-  print(cor.test(d$total_discrepancy_pos, d$nwords))
-  print(cor.test(d$total_discrepancy_pos, d$nchar))
-  print(cor.test(d$total_discrepancy_pos, d$favorite_count))
-  print(cor.test(d$total_discrepancy_pos, d$retweet_count))
-  print(cor.test(d$total_discrepancy_pos, d$ss_ambi))
-  print(cor.test(d$total_discrepancy_pos, d$liwc_ambi))
-  print(cor.test(d$total_discrepancy_pos, d$tidytext_ambi))  # wow! we need to check cook's distance of these
-  print("neg")
-  print(cor.test(d$total_discrepancy_neg, d$nwords))
-  print(cor.test(d$total_discrepancy_neg, d$nchar))
-  print(cor.test(d$total_discrepancy_neg, d$favorite_count))
-  print(cor.test(d$total_discrepancy_neg, d$retweet_count))
-  print(cor.test(d$total_discrepancy_neg, d$ss_ambi))
-  print(cor.test(d$total_discrepancy_neg, d$liwc_ambi))
-  print(cor.test(d$total_discrepancy_neg, d$tidytext_ambi))  # wow! we need to check cook's distance of these
-  print("scale")
-  print(cor.test(d$total_discrepancy_scale, d$nwords))
-  print(cor.test(d$total_discrepancy_scale, d$nchar))
-  print(cor.test(d$total_discrepancy_scale, d$favorite_count))
-  print(cor.test(d$total_discrepancy_scale, d$retweet_count))
-  print(cor.test(d$total_discrepancy_scale, d$ss_ambi))
-  print(cor.test(d$total_discrepancy_scale, d$liwc_ambi))
-  print(cor.test(d$total_discrepancy_scale, d$tidytext_ambi))  # wow! we need to check cook's distance of these
-}
-
-modeling <- function(d){
-  d$isChat[is.na(d$isChat)] <- 0
-  m <- lm(total_discrepancy_pos ~ 
-            nchar + nwords + isChat + is_teacher + q + 
-            ss_ambi + liwc_ambi + tidytext_ambi + 
-            favorite_count + retweet_count, d)
-  tab_model(m, show.icc = TRUE)
-  m <- lm(total_discrepancy_neg ~ 
-            nchar + nwords + isChat + is_teacher + q + 
-            ss_ambi + liwc_ambi + tidytext_ambi + 
-            favorite_count + retweet_count, d)
-  tab_model(m, show.icc = TRUE)
-  m <- lm(total_discrepancy_scale ~ 
-            nchar + nwords + isChat + is_teacher + q + 
-            ss_ambi + liwc_ambi + tidytext_ambi + 
-            favorite_count + retweet_count, d)
-  tab_model(m, show.icc = TRUE)
-}
-
 ##### JOSH FUNCTIONS ######
 
 extract_status_ids <- function(d) {
@@ -679,117 +526,138 @@ read_liwc_and_rename_input_cols <- function(path) {
   d <- read_csv(path)
   d <- d %>%
     rename(status_id = A,
-           text = B)
+           text = B) %>%
+    select(status_id, posemo, negemo)
   d
 }
 
-get_replies_recursive <- function(statuses) {
-  
-  statuses <- statuses[!is.na(statuses)]
-  
-  new_data <- rtweet::lookup_statuses(statuses)
-  
-  print(paste0("In this iteration, accessed ", nrow(new_data), " new Tweets"))
-  
-  new_statuses <- new_data$reply_to_status_id[!is.na(new_data$reply_to_status_id)]
-  
-  if (length(new_statuses) > 0) { # if there are replies to statuses not yet in the data
-    new_data_recursive <- get_replies_recursive(new_statuses) # get the tweets that were replied to
-    out_data <- bind_rows(new_data, new_data_recursive) # and bind together the replies and the original tweets
-  } else { # if there are no replies left to get
-    return(new_data) # return the replies
-  }
+
+join_id_string <- function(d, d_with_id) {
+  left_join(d, d_with_id, by = "status_id")
 }
 
-thread_finder <- function(status_id, d, out_statuses = NULL) {
+access_manual_coding_data <- function(row_indices) {
+  s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 2) %>% 
+    janitor::clean_names()
   
-  status_is_a_reply_to <- as.character(d[d$status_id == status_id, ]$reply_to_status_id)
+  s2 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 3) %>% 
+    janitor::clean_names()
   
-  status_is_a_reply_to <- ifelse(length(status_is_a_reply_to) == 0, NA, status_is_a_reply_to)
+  tibble(r1_pos = s1$positive_affect_1_5[row_indices], 
+         r2_pos = s2$positive_affect_1_5[row_indices],
+         r1_neg = s1$negative_affect_1_5[row_indices], 
+         r2_neg = s2$negative_affect_1_5[row_indices])
   
-  if (!is.na(status_is_a_reply_to)) {
-    
-    if (is.null(out_statuses)) {
-      out_statuses <- c(status_id, status_is_a_reply_to)  
-    } else {
-      out_statuses <- c(out_statuses, status_is_a_reply_to)
-    }
-    
-    thread_finder(status_is_a_reply_to, d, out_statuses)  
-  } else {
-    out_statuses
-  }
 }
 
-remove_short_threads <- function(thread, d, i) {
-  same_thread <- which(str_detect(d$thread_string, thread))
+calculate_manual_agreement <- function(agree_df) {
   
-  same_thread_df <- d[same_thread, "thread_string"]
+  d1 <- tibble(scale = "pos", 
+               agree = irr::agree(agree_df[, 1:2])$value,
+               icc = irr::icc(agree_df[, 1:2])$value,
+               kappa = irr::kappa2(agree_df[, 1:2], weight = "squared")$value)
   
-  same_thread_df <- same_thread_df %>%
-    mutate(length_of_string = nchar(thread_string)) %>%
-    arrange(desc(length_of_string))
+  d2 <- tibble(scale = "neg", 
+               agree = irr::agree(agree_df[, 3:4])$value,
+               icc = irr::icc(agree_df[, 3:4])$value,
+               kappa = irr::kappa2(agree_df[, 3:4], weight = "squared")$value)
   
-  the_longest_thread <- pull(same_thread_df[1, "thread_string"])
-  
-  if (!(the_longest_thread == thread)) {
-    remove_short_threads(the_longest_thread, d = d, i = i)
-  } else {
-    the_longest_thread
-  }
+  bind_rows(d1, d2)
 }
 
-identify_threads <- function(d) {
-  threads <- map(d$status_id, thread_finder, d = d)
+write_file_for_liwc <- function(d) {
+  select(d, status_id, text) %>% 
+    write_csv(here::here("data", "file-to-upload-to-liwc.csv"))
+}
+
+access_manual_coding_data_state_data <- function(row_indices) {
+  s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 7) %>% 
+    janitor::clean_names()
   
-  thread_list <- tibble(ID = 1:length(threads),
-                        thread = threads)
+  tibble(r1_pos = s1$josh_positive_affect_1_5[row_indices], 
+         r2_pos = s1$macy_positive_affect_1_5[row_indices],
+         r1_neg = s1$josh_negative_affect_1_5[row_indices], 
+         r2_neg = s1$macy_negative_affect_1_5[row_indices])
   
-  thread_df <- thread_list %>% 
-    unnest(thread) %>% 
-    group_by(ID) %>% 
-    mutate(thread_string = toString(thread)) %>% 
-    select(ID, thread_string) %>% 
-    distinct(thread_string, .keep_all = TRUE) %>% 
-    ungroup() %>% 
-    mutate(row_number = 1:nrow(.))
+}
+
+access_consensus_codes <- function(ngsschat_indices, state_indices) {
+  s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 4, col_types = "ccccnnnncnncnnc") %>% 
+    janitor::clean_names()
   
-  # not necessary in this case, but necessary in some - same n as before
-  thread_df <- thread_df %>% 
-    unique()
+  s2 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 7, col_types = "ccccnnnncnncnnc") %>% 
+    janitor::clean_names()
   
-  # recursively searching for shorter version of longer threads
-  # 513 unique threads because some are shorter versions of longer ones
-  shorter_thread_list <- map2(.x = thread_df$thread_string, .f = remove_short_threads, d = thread_df, .y = 1:nrow(thread_df))
+  ngsschat_tweets <- s1 %>% 
+    select(status_url, text, consensus_pos, consensus_neg) %>% 
+    slice(ngsschat_indices) %>% 
+    mutate(status_url = status_url %>% str_extract_all("([^/]+$)") %>% unlist %>% as.character) %>%
+    rename(status_id = status_url) %>%
+    mutate(consensus_pos = as.integer(consensus_pos),
+           consensus_neg = as.integer(consensus_neg))
   
-  # this creates a df with every status ID and what thread they're part of
-  new_thread_df <- tibble(ID = 1:length(shorter_thread_list),
-                          thread_string = map_chr(shorter_thread_list, ~.)) %>% 
-    select(-ID) %>% # this gets rid of our old ID
-    left_join(thread_df, by = "thread_string") %>% 
-    select(ID, thread_string) %>% # this uses the ID from our larger df
-    mutate(thread_string = str_split(thread_string, ", ")) %>% 
-    unnest(thread_string) %>% 
-    rename(status_id = thread_string) %>%
-    group_by(status_id) %>% 
-    summarize(id_string = toString(ID)) %>% 
-    mutate(id_string = str_split(id_string, ", ")) %>% 
-    unnest(id_string) %>% 
-    mutate(status_id = as.character(status_id)) %>% 
-    mutate(id_string = str_pad(id_string, 4, pad = "0")) %>% 
-    mutate(status_id = as.character(status_id)) %>% 
-    distinct() %>% 
-    arrange(id_string)
+  state_tweets <- s2 %>% 
+    select(status_id, text, consensus_pos, consensus_neg) %>% 
+    slice(state_indices) %>% 
+    mutate(consensus_pos = as.integer(consensus_pos),
+           consensus_neg = as.integer(consensus_neg))
   
-  # putting together the final dataset
-  out_df <- d %>% 
-    left_join(new_thread_df, by = "status_id") %>% 
-    arrange(id_string)
+  bind_rows(ngsschat_tweets, state_tweets)
   
-  out_df <- out_df %>% 
-    select(status_id, id_string)
+}
+
+combine_coding_and_software_ratings <- function(d_agree, d){
+  d <- d %>% select(status_id, text, text_clean, ss_pos, ss_neg, ss_binary, liwc_binary, tidytext_binary)
+  d <- d[!duplicated(d$text_clean),]
   
-  out_df
+  d_agree$text_clean <- d_agree$text %>% 
+    gsub(pattern="https\\S*", replacement="") %>%   # urls
+    gsub(pattern="http\\S*", replacement="") %>%    # urls
+    gsub(pattern="@\\S*", replacement="") %>%       # tagging
+    gsub(pattern="&amp", replacement="") %>%        # ampersand encoding
+    gsub(pattern="[\r\n]", replacement="") %>%      # line breaks
+    gsub(pattern="[[:punct:]]", replacement="") %>% # punctuation, keep hashtags as words
+    gsub(pattern="\\s+", replacement=" ") %>%       # multiple white space to single space
+    base::trimws()                                  # remove white space at start and end of tweets
+  
+  d <- d[which(d$text_clean %in% d_agree$text_clean),]
+  
+  d_agree$consensus_binary <- ifelse(d_agree$consensus_pos >= d_agree$consensus_neg, 1, 0)
+  
+  d_agree <- d_agree %>% select(text_clean, consensus_pos, consensus_neg, consensus_binary)
+  
+  return(d %>% left_join(d_agree, by="text_clean"))
+}
+
+validation_master <- function(d){
+  d$ss_binary <- factor(d$ss_binary, levels=c(-1, 1), labels=c(0, 1))
+  d$liwc_binary <- as.factor(d$liwc_binary)
+  d$tidytext_binary <- as.factor(d$tidytext_binary)
+  d$consensus_binary <- as.factor(d$consensus_binary)
+  caret::confusionMatrix(data=d$consensus_binary, reference=d$ss_binary) %>% print
+  caret::confusionMatrix(data=d$consensus_binary, reference=d$liwc_binary) %>% print
+  caret::confusionMatrix(data=d$consensus_binary, reference=d$tidytext_binary) %>% print
+  print(
+    tibble(scale = "pos", 
+         agree = irr::agree(d[, c("ss_pos", "consensus_pos")])$value,
+         icc = irr::icc(d[, c("ss_pos", "consensus_pos")])$value,
+         kappa = irr::kappa2(d[, c("ss_pos", "consensus_pos")], weight = "squared")$value)
+  )
+  print(
+    tibble(scale = "neg", 
+           agree = irr::agree(d[, c("ss_neg", "consensus_neg")])$value,
+           icc = irr::icc(d[, c("ss_neg", "consensus_neg")])$value,
+           kappa = irr::kappa2(d[, c("ss_neg", "consensus_neg")], weight = "squared")$value)
+  )
+  d2 <- d[!is.na(d$tidytext_binary),]
+  d2$sum_binary <- d2[,c("ss_binary", "liwc_binary", "tidytext_binary")] %>% apply(2, as.numeric) %>% rowSums
+  d2$combined_binary <- ifelse(d2$sum_binary >= 2, 1, 0) %>% as.factor
+  caret::confusionMatrix(data=d2$consensus_binary, reference=d2$combined_binary) %>% print
 }
 
 join_id_string <- function(d, d_with_id) {
@@ -887,5 +755,6 @@ join_raw_and_google_sheets_data <- function(raw_data) {
     select(status_id)
   
   bind_cols(raw_data, s1)
+  
+}
 
-  }

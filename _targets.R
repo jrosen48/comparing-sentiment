@@ -7,40 +7,54 @@ targets::tar_option_set(packages = c("here", "tidyverse", "tidytext", "lubridate
 
 source(here::here("R", "functions.R"))
 
+## Notes on data that has to be in the local folder to make this version of the pipeline work:
+
+# data-raw: all data files in .rda format including 10 hydrated files for additional tweets, 322 files total
+# data: state-based-twitter-hashtags-raw-data.rds
+# data-sentiment: teacher_prediction.csv, raw-data-combined-for-liwc-results.csv, 
+#                 sentistrength_scale.txt, sentistrength_binary.txt
+
 # Define targets
 targets <- list(
   
-  ## Commented out reply gathering, replies are now as .rda in /data-raw
-  
-  # for recursively adding tweets
-  #tar_target(file_name_for_sample_of_tweets, here::here("data", "sample-of-tweets.rds"), format = "file"),
-  #tar_target(sample_of_tweets_for_thread_finding, read_rds(file_name_for_sample_of_tweets)),
-  #tar_target(extracted_status_ids, extract_status_ids(sample_of_tweets_for_thread_finding)),
-  #tar_target(replies_that_were_recursively_searched, get_replies_recursive(extracted_status_ids)),
-  
-  # for joining added tweets and adding a variable for what thread a tweet is a part of
-  #tar_target(uniquely_identified_reply_threads, identify_threads(replies_that_were_recursively_searched)), # JR is not sure this is working correctly
-  #tar_target(original_tweets_with_replies_added, combine_original_with_reply_tweets(sample_of_tweets_for_thread_finding, replies_that_were_recursively_searched)),
-  #tar_target(original_tweets_with_replies_added_with_id_string, join_id_string),
-  
   tar_target(raw_data_file, create_raw_data(), format = "file"),
   tar_target(raw_data, readRDS(raw_data_file)),
-  tar_target(file_to_upload_to_liwc, write_file_for_liwc(raw_data)),
-  tar_target(state_hashtags_file, here::here("data", "state-based-twitter-hashtags-raw-data.rds"), format = "file"),
-  tar_target(state_hashtags_data, readRDS(state_hashtags_file)),
-  tar_target(state_hashtags_file_to_upload_to_liwc, write_state_hashtags_file_for_liwc(state_hashtags_data)),
+
+  tar_target(additional_data_file, here::here("data", "state-based-twitter-hashtags-raw-data.rds")),
+  tar_target(additional_data, readRDS(additional_data_file)),
+  tar_target(additional_data_prepared, additional_data %>% additional_data_prep()),
+   
+  tar_target(liwc_file_path, here::here("data-sentiment", "raw-data-combined-for-liwc-results.csv"), format = "file"),
+  tar_target(liwc_data, read_liwc_and_rename_input_cols(liwc_file_path)),
   
+  tar_target(matching_df_liwc, create_matching_df(raw_data, additional_data_prepared)),
+  tar_target(add_liwc_df, add_liwc_to_additional_data(matching_df_liwc, liwc_data)),
+  tar_target(match_liwc_to_raw_data, raw_data %>% left_join(add_liwc_df, by="status_id")),
+
   tar_target(ss_scale_file, here::here("data-sentiment", "sentistrength_scale.txt"), format="file"),
   tar_target(ss_binary_file, here::here("data-sentiment", "sentistrength_binary.txt"), format="file"),
-  tar_target(ngss_liwc_file, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
-  tar_target(teacher_class_file, here::here("data-sentiment", "teacher_prediction.csv"), format="file"),
   
   tar_target(ss_scale_data, read.table(ss_scale_file, sep="\t", header = T, quote="")),
   tar_target(ss_binary_data, read.table(ss_binary_file, sep="\t", header = T, quote="")),
-  tar_target(liwc_data, read_liwc_and_rename_input_cols(ngss_liwc_file)),
+  
+  tar_target(teacher_class_file, here::here("data-sentiment", "teacher_prediction.csv"), format="file"),
   tar_target(teacher_class_data, read.csv(teacher_class_file) %>% rename(is_teacher=prediction_by_keywords)), 
   
-  tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, liwc_data, teacher_class_data)),
+  tar_target(raw_with_external, add_external_master(match_liwc_to_raw_data, ss_scale_data, ss_binary_data, teacher_class_data)),
+  
+  ######
+  # Josh, these targets did not exist in my current pipline:
+  #tar_target(file_to_upload_to_liwc, write_file_for_liwc(raw_data)),
+  #tar_target(state_hashtags_file, here::here("data", "state-based-twitter-hashtags-raw-data.rds"), format = "file"),
+  #tar_target(state_hashtags_data, readRDS(state_hashtags_file)),
+  #tar_target(state_hashtags_file_to_upload_to_liwc, write_state_hashtags_file_for_liwc(state_hashtags_data)),
+  #tar_target(ngss_liwc_file, here::here("data-sentiment", "liwc_results.csv"), format = "file"),
+  #tar_target(liwc_data, read_liwc_and_rename_input_cols(ngss_liwc_file)),
+  #tar_target(raw_data_combined, merge_additional_files(raw_data, additional_data_prepared)),
+  #tar_target(write_raw_data_combined_for_liwc, raw_data_combined %>% select(status_id, text) %>% write_csv(here("data-sentiment", "raw-data-combined-for-liwc.csv"))),
+  ######
+  
+  tar_target(raw_with_external, add_external_master(raw_data, ss_scale_data, ss_binary_data, teacher_class_data)),
 
   tar_target(clean_data_file, raw_with_external %>% clean_master(), format = "file"),
   tar_target(clean_data, readRDS(clean_data_file)),
@@ -64,13 +78,26 @@ targets <- list(
   tar_target(agree_df_states_1_20, access_manual_coding_data_state_data(1:20)),
   tar_target(agree_statistics_states_1_20, calculate_manual_agreement(agree_df_states_1_20)),
 
+  # manual coding reliability
+  tar_target(file_for_state_sample_for_qual_coding, here("data", "sample-of-state-tweets-for-qual-coding.csv")),
+  tar_target(joined_state_sample_for_qual_coding, join_raw_and_google_sheets_data(file_for_state_sample_for_qual_coding)),
+  
+  tar_target(agree_df_1_20, access_manual_coding_data(1:20)), # row indices are for the first 20 rows 
+  
+  tar_target(agree_statistics_1_20, calculate_manual_agreement(agree_df_1_20)),
+  tar_target(agree_df_21_45, access_manual_coding_data(21:45)),
+  tar_target(agree_statistics_21_45, calculate_manual_agreement(agree_df_21_45)),
+  tar_target(agree_df_states_1_20, access_manual_coding_data_state_data(1:20)),
+  tar_target(agree_statistics_states_1_20, calculate_manual_agreement(agree_df_states_1_20)),
+  
   # consensus codes from manual coding
-  tar_target(consensus_manual_codes, access_consensus_codes(1:45, 1:20))
+  tar_target(consensus_manual_codes, access_consensus_codes(1:45, 1:20)),
   
-  # tar_target(agree_df_first_1_20, access_manual_coding_data(1:20)), 
-  # tar_target(agree_statistics, calculate_manual_agreement(agree_df_1_20))
+  # evaluate consensus
+  tar_target(consensus_with_software_ratings, combine_coding_and_software_ratings(consensus_manual_codes, final_data)),
   
-  
+  tar_target(validation, consensus_with_software_ratings %>% validation_master)
+ 
   # Descriptives and results in seperate Rmd Files in root folder for now
 
   #tar_target(descriptives, final_data %>% descriptives_master()),

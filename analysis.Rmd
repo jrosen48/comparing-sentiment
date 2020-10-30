@@ -16,18 +16,22 @@ library(sjPlot)
 ## Loading final data set from Targets cache
 
 ```{r loading data}
-targets::tar_load("final_data")
-d <- final_data
-rm(final_data)
+d <- targets::tar_read("final_data")
 ```
 
 ## Modeling positivity discprepancy
 ```{r modeling pos}
 d$isChat[is.na(d$isChat)] <- 0
+d$is_teacher <- d$is_teacher %>% as.factor()
+d$ss_binary <- d$ss_binary %>% as.factor()
+d$liwc_binary <- d$liwc_binary %>% as.factor()
+d$tidytext_binary <- d$tidytext_binary %>% as.factor()
+d$q[d$q=="other"] <- "ngss"
+d$q <- factor(d$q, level=c("ngss", "#NGSSchat", "state-based-hashtags"))
 m <- lm(total_discrepancy_pos ~ 
-          nchar + nwords + isChat + is_teacher + q + 
+          nwords  + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
+          favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)
 ```
 
@@ -35,10 +39,16 @@ tab_model(m, show.icc = TRUE)
 
 ```{r modeling neg}
 d$isChat[is.na(d$isChat)] <- 0
+d$is_teacher <- d$is_teacher %>% as.factor()
+d$ss_binary <- d$ss_binary %>% as.factor()
+d$liwc_binary <- d$liwc_binary %>% as.factor()
+d$tidytext_binary <- d$tidytext_binary %>% as.factor()
+d$q[d$q=="other"] <- "ngss"
+d$q <- factor(d$q, level=c("ngss", "#NGSSchat", "state-based-hashtags"))
 m <- lm(total_discrepancy_neg ~ 
-          nchar + nwords + isChat + is_teacher + q + 
+          nwords  + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
+          favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)
 ```
 
@@ -46,41 +56,15 @@ tab_model(m, show.icc = TRUE)
 
 ```{r modeling scale}
 d$isChat[is.na(d$isChat)] <- 0
+d$is_teacher <- d$is_teacher %>% as.factor()
+d$ss_binary <- d$ss_binary %>% as.factor()
+d$liwc_binary <- d$liwc_binary %>% as.factor()
+d$tidytext_binary <- d$tidytext_binary %>% as.factor()
+d$q[d$q=="other"] <- "ngss"
+d$q <- factor(d$q, level=c("ngss", "#NGSSchat", "state-based-hashtags"))
 m <- lm(total_discrepancy_scale ~ 
-          nchar + nwords + isChat + is_teacher + q + 
+          nwords  + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
-tab_model(m, show.icc = TRUE)
-```
-
-## Modeling overall scale discprepancy with sqrt applied
-
-```{r modeling scale sqrt}
-d$isChat[is.na(d$isChat)] <- 0
-m <- lm(total_discrepancy_scale %>% sqrt ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
-tab_model(m, show.icc = TRUE)
-```
-## Modeling overall scale discprepancy with log applied
-
-```{r modeling scale log}
-d$isChat[is.na(d$isChat)] <- 0
-m <- lm(total_discrepancy_scale %>% log ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          ss_ambi + liwc_ambi + tidytext_ambi + 
-          favorite_count + retweet_count, d)
-tab_model(m, show.icc = TRUE)
-```
-
-## Optized model, discrepancy and ambiguity most normally distributed when log transformed, other predictors correlate best when nothing is transformed
-
-```{r modeling scale optimized}
-d$isChat[is.na(d$isChat)] <- 0
-m <- lm(total_discrepancy_scale ~ 
-          nchar + nwords + isChat + is_teacher + q + 
-          ss_ambi %>% exp + liwc_ambi %>% exp + tidytext_ambi %>% exp + 
-          favorite_count + retweet_count, d)
+          favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)
 ```
