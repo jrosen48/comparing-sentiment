@@ -54,7 +54,7 @@ targets <- list(
   tar_target(final_data, readRDS(final_data_file)) ,
   
   # manual coding reliability
-  tar_target(file_for_state_sample_for_qual_coding, here("data-raw", "sample-of-state-tweets-for-qual-coding.csv")),
+  tar_target(file_for_state_sample_for_qual_coding, here("data", "sample-of-state-tweets-for-qual-coding.csv")),
   tar_target(joined_state_sample_for_qual_coding, join_raw_and_google_sheets_data(file_for_state_sample_for_qual_coding)),
   
   tar_target(agree_df_1_20, access_manual_coding_data(1:20)), # row indices are for the first 20 rows manually coded; will pdate as we 
