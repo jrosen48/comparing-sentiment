@@ -53,17 +53,28 @@ targets <- list(
   tar_target(data_discrepancy, data_context %>% discrepancy_master()),
 
   tar_target(final_data_file, data_discrepancy %>% save_final_dataset(), format = "file"),
-  tar_target(final_data, readRDS(final_data_file))#,
+  tar_target(final_data, readRDS(final_data_file)),
 
-  # RESULTS: optionally for different subsets (#NGSSchat, non-chat, ...) # JR comment: unclear what this meansgit
-
-  #tar_target(descriptives, final_data %>% descriptives_master()),
-  #tar_target(analysis, final_data %>% analysis_master()),
+  tar_target(agree_df_1_20, access_manual_coding_data(1:20)), # row indices are for the first 20 rows 
   
-  # agreement from manual coding
-  #tar_target(agree_df, access_manual_coding_data(1:20)), # row indices are for the first 20 rows manually coded
-  #tar_target(agree_statistics, calculate_manual_agreement(agree_df))
-
+  tar_target(agree_statistics_1_20, calculate_manual_agreement(agree_df_1_20)),
+  tar_target(agree_df_21_45, access_manual_coding_data(21:45)),
+  tar_target(agree_statistics_21_45, calculate_manual_agreement(agree_df_21_45)),
+  tar_target(agree_df_states_1_20, access_manual_coding_data_state_data(1:20)),
+  tar_target(agree_statistics_states_1_20, calculate_manual_agreement(agree_df_states_1_20)),
+  
+  # consensus codes from manual coding
+  tar_target(consensus_manual_codes, access_consensus_codes(1:45, 1:20)),
+  
+  # evaluate consensus
+  tar_target(consensus_with_software_ratings, combine_coding_and_software_ratings(consensus_manual_codes, final_data)),
+  
+  tar_target(validation, consensus_with_software_ratings %>% validation_master)
+  
+  # tar_target(agree_df_first_1_20, access_manual_coding_data(1:20)), 
+  # tar_target(agree_statistics, calculate_manual_agreement(agree_df_1_20))
+  
+  
 )
 
 # End with a call to tar_pipeline() to wrangle the targets together.

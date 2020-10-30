@@ -16,9 +16,7 @@ library(sjPlot)
 ## Loading final data set from Targets cache
 
 ```{r loading data}
-targets::tar_load("final_data")
-d <- final_data
-rm(final_data)
+d <- targets::tar_read("final_data")
 ```
 
 ## Modeling positivity discprepancy
@@ -28,8 +26,10 @@ d$is_teacher <- d$is_teacher %>% as.factor()
 d$ss_binary <- d$ss_binary %>% as.factor()
 d$liwc_binary <- d$liwc_binary %>% as.factor()
 d$tidytext_binary <- d$tidytext_binary %>% as.factor()
+d$q[d$q=="other"] <- "ngss"
+d$q <- factor(d$q, level=c("ngss", "#NGSSchat", "state-based-hashtags"))
 m <- lm(total_discrepancy_pos ~ 
-          nwords + isChat + is_teacher + q + 
+          nwords  + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
           favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)
@@ -43,8 +43,10 @@ d$is_teacher <- d$is_teacher %>% as.factor()
 d$ss_binary <- d$ss_binary %>% as.factor()
 d$liwc_binary <- d$liwc_binary %>% as.factor()
 d$tidytext_binary <- d$tidytext_binary %>% as.factor()
+d$q[d$q=="other"] <- "ngss"
+d$q <- factor(d$q, level=c("ngss", "#NGSSchat", "state-based-hashtags"))
 m <- lm(total_discrepancy_neg ~ 
-          nwords + isChat + is_teacher + q + 
+          nwords  + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
           favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)
@@ -58,8 +60,10 @@ d$is_teacher <- d$is_teacher %>% as.factor()
 d$ss_binary <- d$ss_binary %>% as.factor()
 d$liwc_binary <- d$liwc_binary %>% as.factor()
 d$tidytext_binary <- d$tidytext_binary %>% as.factor()
+d$q[d$q=="other"] <- "ngss"
+d$q <- factor(d$q, level=c("ngss", "#NGSSchat", "state-based-hashtags"))
 m <- lm(total_discrepancy_scale ~ 
-          nwords + isChat + is_teacher + q + 
+          nwords  + is_teacher + q + 
           ss_ambi + liwc_ambi + tidytext_ambi + 
           favorite_count + retweet_count + ss_binary + liwc_binary + tidytext_binary, d)
 tab_model(m, show.icc = TRUE)

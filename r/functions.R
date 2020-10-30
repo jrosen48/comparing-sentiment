@@ -745,11 +745,11 @@ join_id_string <- function(d, d_with_id) {
 
 access_manual_coding_data <- function(row_indices) {
   s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
-                                  sheet = 1) %>% 
+                                  sheet = 2) %>% 
     janitor::clean_names()
   
   s2 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
-                                  sheet = 2) %>% 
+                                  sheet = 3) %>% 
     janitor::clean_names()
   
   tibble(r1_pos = s1$positive_affect_1_5[row_indices], 
@@ -777,4 +777,88 @@ calculate_manual_agreement <- function(agree_df) {
 write_file_for_liwc <- function(d) {
   select(d, status_id, text) %>% 
     write_csv(here::here("data", "file-to-upload-to-liwc.csv"))
+}
+
+access_manual_coding_data_state_data <- function(row_indices) {
+  s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 7) %>% 
+    janitor::clean_names()
+  
+  tibble(r1_pos = s1$josh_positive_affect_1_5[row_indices], 
+         r2_pos = s1$macy_positive_affect_1_5[row_indices],
+         r1_neg = s1$josh_negative_affect_1_5[row_indices], 
+         r2_neg = s1$macy_negative_affect_1_5[row_indices])
+  
+}
+
+access_consensus_codes <- function(ngsschat_indices, state_indices) {
+  s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 4, col_types = "ccccnnnncnncnnc") %>% 
+    janitor::clean_names()
+  
+  s2 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 7, col_types = "ccccnnnncnncnnc") %>% 
+    janitor::clean_names()
+  
+  ngsschat_tweets <- s1 %>% 
+    select(status_url, text, consensus_pos, consensus_neg) %>% 
+    slice(ngsschat_indices) %>% 
+    mutate(status_url = status_url %>% str_extract_all("([^/]+$)") %>% unlist %>% as.character) %>%
+    rename(status_id = status_url) %>%
+    mutate(consensus_pos = as.integer(consensus_pos),
+           consensus_neg = as.integer(consensus_neg))
+  
+  state_tweets <- s2 %>% 
+    select(status_id, text, consensus_pos, consensus_neg) %>% 
+    slice(state_indices) %>% 
+    mutate(consensus_pos = as.integer(consensus_pos),
+           consensus_neg = as.integer(consensus_neg))
+  
+  bind_rows(ngsschat_tweets, state_tweets)
+  
+}
+
+combine_coding_and_software_ratings <- function(d_agree, d){
+  d <- d %>% select(status_id, text, text_clean, ss_pos, ss_neg, ss_binary, liwc_binary, tidytext_binary)
+  d <- d[!duplicated(d$text_clean),]
+  
+  d_agree$text_clean <- d_agree$text %>% 
+    gsub(pattern="https\\S*", replacement="") %>%   # urls
+    gsub(pattern="http\\S*", replacement="") %>%    # urls
+    gsub(pattern="@\\S*", replacement="") %>%       # tagging
+    gsub(pattern="&amp", replacement="") %>%        # ampersand encoding
+    gsub(pattern="[\r\n]", replacement="") %>%      # line breaks
+    gsub(pattern="[[:punct:]]", replacement="") %>% # punctuation, keep hashtags as words
+    gsub(pattern="\\s+", replacement=" ") %>%       # multiple white space to single space
+    base::trimws()                                  # remove white space at start and end of tweets
+  
+  d <- d[which(d$text_clean %in% d_agree$text_clean),]
+  
+  d_agree$consensus_binary <- ifelse(d_agree$consensus_pos >= d_agree$consensus_neg, 1, 0)
+  
+  d_agree <- d_agree %>% select(text_clean, consensus_pos, consensus_neg, consensus_binary)
+  
+  return(d %>% left_join(d_agree, by="text_clean"))
+}
+
+validation_master <- function(d){
+  d$ss_binary <- factor(d$ss_binary, levels=c(-1, 1), labels=c(0, 1))
+  d$liwc_binary <- as.factor(d$liwc_binary)
+  d$tidytext_binary <- as.factor(d$tidytext_binary)
+  d$consensus_binary <- as.factor(d$consensus_binary)
+  caret::confusionMatrix(data=d$consensus_binary, reference=d$ss_binary) %>% print
+  caret::confusionMatrix(data=d$consensus_binary, reference=d$liwc_binary) %>% print
+  caret::confusionMatrix(data=d$consensus_binary, reference=d$tidytext_binary) %>% print
+  print(
+    tibble(scale = "pos", 
+         agree = irr::agree(d[, c("ss_pos", "consensus_pos")])$value,
+         icc = irr::icc(d[, c("ss_pos", "consensus_pos")])$value,
+         kappa = irr::kappa2(d[, c("ss_pos", "consensus_pos")], weight = "squared")$value)
+  )
+  print(
+    tibble(scale = "neg", 
+           agree = irr::agree(d[, c("ss_neg", "consensus_neg")])$value,
+           icc = irr::icc(d[, c("ss_neg", "consensus_neg")])$value,
+           kappa = irr::kappa2(d[, c("ss_neg", "consensus_neg")], weight = "squared")$value)
+  )
 }

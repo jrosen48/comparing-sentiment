@@ -8,6 +8,7 @@
 *.rds
 *.csv
 *.txt
+*.html
 
 SentiStrengthJavaManual.doc
 
