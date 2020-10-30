@@ -559,8 +559,8 @@ descriptives_disc_pairs <- function(d, variable_string){
   }
   
   mean_disc[,2] <- mean_disc[,2] %>% as.numeric() %>%
-                                        # sqrt()  %>% # to interpret as sd difference, test also leaving out ^2 to the direction of bias
-                                        round(2)
+    # sqrt()  %>% # to interpret as sd difference, test also leaving out ^2 to the direction of bias
+    round(2)
   mean_disc <- mean_disc[order(mean_disc[,2]),]
   
   print(mean_disc)  # ss and liwc rather inconsistent, liwc closer to tidytext than ss, tidytext closest dict to ss+liwc
@@ -619,7 +619,7 @@ analysis_master <- function(d){   # just an example
   d %>%
     cor_testing()
   #d %>%
-   # modeling()  evaluate best with targets::tar_load("final_data") | d <- final_data
+  # modeling()  evaluate best with targets::tar_load("final_data") | d <- final_data
 }
 
 cor_testing <- function(d){
@@ -873,3 +873,19 @@ write_state_hashtags_file_for_liwc <- function(d) {
   select(d, status_id, text) %>% 
     write_csv(here::here("data", "state-hashtags-file-to-upload-to-liwc.csv"))
 }
+
+join_raw_and_google_sheets_data <- function(raw_data) {
+  s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
+                                  sheet = 7) %>% 
+    janitor::clean_names() %>% 
+    select(-status_id)
+  
+  raw_data <- read_csv(raw_data,
+                       col_types = cols(
+                         status_id = col_character()
+                       )) %>% 
+    select(status_id)
+  
+  bind_cols(raw_data, s1)
+
+  }

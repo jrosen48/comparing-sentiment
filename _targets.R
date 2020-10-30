@@ -54,13 +54,16 @@ targets <- list(
   tar_target(final_data, readRDS(final_data_file)) ,
   
   # manual coding reliability
+  tar_target(file_for_state_sample_for_qual_coding, here("data-raw", "sample-of-state-tweets-for-qual-coding.csv")),
+  tar_target(joined_state_sample_for_qual_coding, join_raw_and_google_sheets_data(file_for_state_sample_for_qual_coding)),
+  
   tar_target(agree_df_1_20, access_manual_coding_data(1:20)), # row indices are for the first 20 rows manually coded; will pdate as we 
   tar_target(agree_statistics_1_20, calculate_manual_agreement(agree_df_1_20)),
   tar_target(agree_df_21_45, access_manual_coding_data(21:45)),
   tar_target(agree_statistics_21_45, calculate_manual_agreement(agree_df_21_45)),
   tar_target(agree_df_states_1_20, access_manual_coding_data_state_data(1:20)),
   tar_target(agree_statistics_states_1_20, calculate_manual_agreement(agree_df_states_1_20)),
-  
+
   # consensus codes from manual coding
   tar_target(consensus_manual_codes, access_consensus_codes(1:45, 1:20))
   
