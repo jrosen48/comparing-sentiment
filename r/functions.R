@@ -651,6 +651,12 @@ validation_master <- function(d){
   d$liwc_binary <- as.factor(d$liwc_binary)
   d$tidytext_binary <- as.factor(d$tidytext_binary)
   d$consensus_binary <- as.factor(d$consensus_binary)
+  
+  d$ss_binary <- factor(d$ss_binary, levels=c(1, 0)) 
+  d$liwc_binary <- factor(d$liwc_binary, levels=c(1, 0)) 
+  d$tidytext_binary <- factor(d$tidytext_binary, levels=c(1, 0)) 
+  d$consensus_binary <- factor(d$consensus_binary, levels=c(1, 0)) 
+  
   print("SENTISTRENGTH")
   caret::confusionMatrix(data=d$consensus_binary, reference=d$ss_binary) %>% print
   print("LIWC")
@@ -673,6 +679,8 @@ validation_master <- function(d){
   d2 <- d[!is.na(d$tidytext_binary),]
   d2$sum_binary <- d2[,c("ss_binary", "liwc_binary", "tidytext_binary")] %>% apply(2, as.numeric) %>% rowSums
   d2$combined_binary <- ifelse(d2$sum_binary >= 2, 1, 0) %>% as.factor
+  d2$combined_binary <- factor(d2$combined_binary, levels=c(1, 0)) 
+  
   print("COMBINED BINARY RATINGS")
   caret::confusionMatrix(data=d2$consensus_binary, reference=d2$combined_binary) %>% print
 }
