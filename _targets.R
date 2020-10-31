@@ -82,17 +82,15 @@ targets <- list(
   tar_target(combined_agree_stats, calculate_manual_agreement(combined_agree_df)),
 
   # consensus codes from manual coding
-  tar_target(consensus_manual_codes, access_consensus_codes(1:45, 1:71))
+  tar_target(consensus_manual_codes, access_consensus_codes_conrad(1:45, 1:71)),
+  
+  tar_target(indexs_of_coded_tweets_in_data, find_indexes_master(final_data, consensus_manual_codes)),
   
   # evaluate consensus
-  #tar_target(consensus_with_software_ratings, combine_coding_and_software_ratings(consensus_manual_codes, final_data)),
+  tar_target(consensus_with_software_ratings, combine_coding_and_software_ratings(consensus_manual_codes, 
+                        final_data, indexs_of_coded_tweets_in_data)),
   
-  #tar_target(validation, consensus_with_software_ratings %>% validation_master)
- 
-  # Descriptives and results in seperate Rmd Files in root folder for now
-
-  #tar_target(descriptives, final_data %>% descriptives_master()),
-  #tar_target(analysis, final_data %>% analysis_master())
+  tar_target(validation, consensus_with_software_ratings %>% validation_master)
 
 )
 

@@ -584,9 +584,9 @@ access_manual_coding_data_state_data <- function(row_indices) {
   
 }
 
-access_consensus_codes <- function(ngsschat_indices, state_indices) {
+access_consensus_codes_conrad <- function(ngsschat_indices, state_indices) {
   s1 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
-                                  sheet = 4, col_types = "ccccnnnncnncnnc") %>% 
+                                  sheet = 4, col_types = "ccccnnnncnncnncc") %>% 
     janitor::clean_names()
   
   s2 <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1UOMJP4HUDDVlOs-i0orqyY_9Mf5s13yaZwzOa8yMqko/edit#gid=1614206599",
@@ -594,15 +594,15 @@ access_consensus_codes <- function(ngsschat_indices, state_indices) {
     janitor::clean_names()
   
   ngsschat_tweets <- s1 %>% 
-    select(status_url, text, consensus_pos, consensus_neg) %>% 
+    mutate(status_id = status_url %>% str_extract_all("([^/]+$)") %>% unlist) %>%
+    mutate(created_at = NA) %>%
+    select(status_id, created_at, text, consensus_pos, consensus_neg) %>% 
     slice(ngsschat_indices) %>% 
-    mutate(status_url = status_url %>% str_extract_all("([^/]+$)") %>% unlist %>% as.character) %>%
-    rename(status_id = status_url) %>%
     mutate(consensus_pos = as.integer(consensus_pos),
            consensus_neg = as.integer(consensus_neg))
   
   state_tweets <- s2 %>% 
-    select(status_id, text, consensus_pos, consensus_neg) %>% 
+    select(status_id, created_at, text, consensus_pos, consensus_neg) %>% 
     slice(state_indices) %>% 
     mutate(consensus_pos = as.integer(consensus_pos),
            consensus_neg = as.integer(consensus_neg))
@@ -611,27 +611,39 @@ access_consensus_codes <- function(ngsschat_indices, state_indices) {
   
 }
 
-combine_coding_and_software_ratings <- function(d_agree, d){
-  d <- d %>% select(status_id, text, text_clean, ss_pos, ss_neg, ss_binary, liwc_binary, tidytext_binary)
-  d <- d[!duplicated(d$text_clean),]
+combine_coding_and_software_ratings <- function(d_agree, d_all, index_d_all){
   
-  d_agree$text_clean <- d_agree$text %>% 
-    gsub(pattern="https\\S*", replacement="") %>%   # urls
-    gsub(pattern="http\\S*", replacement="") %>%    # urls
-    gsub(pattern="@\\S*", replacement="") %>%       # tagging
-    gsub(pattern="&amp", replacement="") %>%        # ampersand encoding
-    gsub(pattern="[\r\n]", replacement="") %>%      # line breaks
-    gsub(pattern="[[:punct:]]", replacement="") %>% # punctuation, keep hashtags as words
-    gsub(pattern="\\s+", replacement=" ") %>%       # multiple white space to single space
-    base::trimws()                                  # remove white space at start and end of tweets
+  d_all <- d_all[index_d_all,]
   
-  d <- d[which(d$text_clean %in% d_agree$text_clean),]
+  d_all <- d_all %>% select(status_id, created_at, ss_pos, ss_neg, ss_binary, liwc_binary, tidytext_binary)
   
-  d_agree$consensus_binary <- ifelse(d_agree$consensus_pos >= d_agree$consensus_neg, 1, 0)
+  d_agree$identifyer <- NA
   
-  d_agree <- d_agree %>% select(text_clean, consensus_pos, consensus_neg, consensus_binary)
+  d_agree$identifyer[!is.na(d_agree$created_at)] <- d_agree$created_at[!is.na(d_agree$created_at)] 
   
-  return(d %>% left_join(d_agree, by="text_clean"))
+  d_agree$identifyer <- d_agree$identifyer %>% gsub(pattern="T", replacement = " ") %>%
+    gsub(pattern="Z", replacement = " ") %>%
+    as.POSIXct(tz = "UTC") %>% as.numeric()
+  
+  d_all$identifyer <- d_all$created_at %>% as.numeric()
+  
+  d_joined_by_time <- d_all %>% inner_join(d_agree, by = "identifyer")
+  
+  d_joined_by_status_id <- d_all %>% inner_join(d_agree, by = "status_id")
+  
+  d_joined_by_time <- d_joined_by_time %>% select(
+    ss_pos, ss_neg, ss_binary, liwc_binary, tidytext_binary, consensus_pos, consensus_neg
+  )
+  
+  d_joined_by_status_id <- d_joined_by_status_id %>% select(
+    ss_pos, ss_neg, ss_binary, liwc_binary, tidytext_binary, consensus_pos, consensus_neg
+  )
+  
+  d_validation <- rbind(d_joined_by_status_id, d_joined_by_time)
+  
+  d_validation$consensus_binary <- ifelse(d_validation$consensus_pos >= d_validation$consensus_neg, 1, 0)
+  
+  return(d_validation)
 }
 
 validation_master <- function(d){
@@ -639,9 +651,13 @@ validation_master <- function(d){
   d$liwc_binary <- as.factor(d$liwc_binary)
   d$tidytext_binary <- as.factor(d$tidytext_binary)
   d$consensus_binary <- as.factor(d$consensus_binary)
+  print("SENTISTRENGTH")
   caret::confusionMatrix(data=d$consensus_binary, reference=d$ss_binary) %>% print
+  print("LIWC")
   caret::confusionMatrix(data=d$consensus_binary, reference=d$liwc_binary) %>% print
+  print("TIDYTEXT")
   caret::confusionMatrix(data=d$consensus_binary, reference=d$tidytext_binary) %>% print
+  print("SCALE ICC WITH SENTISTRENGTH UNIDIMENSIONAL SCALES")
   print(
     tibble(scale = "pos", 
          agree = irr::agree(d[, c("ss_pos", "consensus_pos")])$value,
@@ -657,6 +673,7 @@ validation_master <- function(d){
   d2 <- d[!is.na(d$tidytext_binary),]
   d2$sum_binary <- d2[,c("ss_binary", "liwc_binary", "tidytext_binary")] %>% apply(2, as.numeric) %>% rowSums
   d2$combined_binary <- ifelse(d2$sum_binary >= 2, 1, 0) %>% as.factor
+  print("COMBINED BINARY RATINGS")
   caret::confusionMatrix(data=d2$consensus_binary, reference=d2$combined_binary) %>% print
 }
 
@@ -758,3 +775,23 @@ join_raw_and_google_sheets_data <- function(raw_data) {
   
 }
 
+
+find_indexes_master <- function(d_all, d_agree){
+  
+  index <- which(d_all$status_id %in% d_agree$status_id)
+  
+  d_states <- d_agree[!(is.na(d_agree$created_at)),]
+  d_states$created_at <- d_states$created_at %>% gsub(pattern="T", replacement = " ") %>%
+                          gsub(pattern="Z", replacement = " ") %>%
+                          as.POSIXct(tz = "UTC")
+  
+  inds <- which(d_all$created_at %in% d_states$created_at)
+  
+  remove_ambiguous_inds <- d_all$created_at[which(d_all$created_at %in% d_states$created_at)] %>% duplicated %>% which
+  
+  inds <- inds[-remove_ambiguous_inds]
+  
+  index <- c(index, inds) %>% unique %>% head(100)   # now we got 100!
+  
+  return(index)
+}
