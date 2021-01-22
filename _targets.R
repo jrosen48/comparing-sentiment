@@ -13,40 +13,27 @@ source(here::here("R", "functions.R"))
 targets <- list(
   
   tar_target(study_sample_file, "./data/study-sample-2021-01-21.rds", format = "file"),
-  tar_target(study_sample, readRDS(study_sample_file))#,
+  tar_target(study_sample, readRDS(study_sample_file)),
 
-  #tar_target(data_clean, study_sample %>% clean_master()),
-
-  #tar_target(data_main_vars, clean_data %>% add_vars_master()),
-  #tar_target(data_context, data_tidytext %>% context_master()),
-  #tar_target(data_discrepancy, data_context %>% discrepancy_master()),
-
+  tar_target(data_clean, study_sample %>% clean_master()),
+  tar_target(data_main_vars, data_clean %>% add_vars_master()),
+  tar_target(data_context, data_main_vars %>% context_master()),
   
-  # manual coding reliability
-  #tar_target(file_for_state_sample_for_qual_coding, here("data", "sample-of-state-tweets-for-qual-coding.csv")),
-  #tar_target(joined_state_sample_for_qual_coding, join_raw_and_google_sheets_data(file_for_state_sample_for_qual_coding)),
+  # Endpoint A: Validation of classifications (with Python)
   
-  #tar_target(agree_df_1_20, access_manual_coding_data(1:20)), # row indices are for the first 20 rows manually coded; will pdate as we 
-  #tar_target(agree_statistics_1_20, calculate_manual_agreement(agree_df_1_20)),
-  #tar_target(agree_df_21_45, access_manual_coding_data(21:45)),
-  #tar_target(agree_statistics_21_45, calculate_manual_agreement(agree_df_21_45)),
-  #tar_target(agree_df_states_1_20, access_manual_coding_data_state_data(1:20)),
-  #tar_target(agree_statistics_states_1_20, calculate_manual_agreement(agree_df_states_1_20)),
+  tar_target(validation_sample_file, "./data/final-validation-set.rds", format = "file"),
+  tar_target(validation_sample, readRDS(validation_sample_file)),
+  tar_target(A_validation_export_file, merge_and_export_validation(data_context, validation_sample)),
   
-  #tar_target(combined_agree_df, dplyr::bind_rows(agree_df_1_20, agree_df_21_45, agree_df_states_1_20)),
-  #tar_target(combined_agree_stats, calculate_manual_agreement(combined_agree_df)),
-
-  # consensus codes from manual coding
-  #tar_target(consensus_manual_codes, access_consensus_codes_conrad(1:45, 1:71)),
+  # Endpoint B: Descriptive data
   
-  #tar_target(indexs_of_coded_tweets_in_data, find_indexes_master(final_data, consensus_manual_codes)),
+  tar_target(B_descriptives, data_context %>% select_descrptive_vars()),
   
-  # evaluate consensus
-  #tar_target(consensus_with_software_ratings, combine_coding_and_software_ratings(consensus_manual_codes, 
-   #                     final_data, indexs_of_coded_tweets_in_data)),
+  # Endpoint C: Scale discrepancy analysis
   
-  #tar_target(validation, consensus_with_software_ratings %>% validation_master)
-
+  tar_target(C_discrepancy, data_context %>% discrepancy_master()),
+  tar_target(full_export_file, C_discrepancy %>% (function(d, path="./data/final.rds"){saveRDS(d,path);path}), format="file")
+  
 )
 
 # End with a call to tar_pipeline() to wrangle the targets together.
