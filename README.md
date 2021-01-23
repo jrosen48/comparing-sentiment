@@ -23,8 +23,8 @@ To run the project pipeline, enter and run the following function:
 ## Directory structure
 
 - Raw data: `data-raw`
-- Data that can be shared: `data`
-- Sentiment data from external software: `data-sentiment`
+- Aggregated data and data from external sentiment software: `data`
+  - For more information, refer to `create-study-data.R`
 - Functions: `r/functions.R`
 
 ## Study data
