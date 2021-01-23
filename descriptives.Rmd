@@ -115,15 +115,15 @@ d %>%
   
   print("Tidytext:")
   print("bing")
-  print((d$bing_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d %>% filter(bing_pos!=0 | bing_neg!=0) %>% nrow() * 100 / nrow(d)) %>% round(2))
   print("afinn")
-  print((d$afinn_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d %>% filter(afinn_pos!=0 | afinn_neg!=0) %>% nrow() * 100 / nrow(d)) %>% round(2))
   print("loughran")
-  print((d$loughran_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d %>% filter(loughran_pos!=0 | loughran_neg!=0) %>% nrow() * 100 / nrow(d)) %>% round(2))
   print("nrc")
-  print((d$nrc_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
+  print((d %>% filter(nrc_pos!=0 | nrc_neg!=0) %>% nrow() * 100 / nrow(d)) %>% round(2))
   print("tidytext overall")
-  print((d$tidytext_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2)) 
+  print((d %>% filter(tidytext_pos!=0 | tidytext_neg!=0) %>% nrow() * 100 / nrow(d)) %>% round(2))
   
   print("VADER:")
   print((d %>% filter(vader_pos!=0 | vader_neg!=0) %>% nrow() * 100 / nrow(d)) %>% round(2))
@@ -131,7 +131,7 @@ d %>%
   print("All together:")
   print((d %>% 
            filter(ss_pos!=1 | ss_neg!=-1 | liwc_pos!=0 | liwc_neg!=0 | vader_pos!=0 | vader_neg!=0 | 
-                    !is.na(tidytext_scale)) %>% 
+                    tidytext_pos!=0 | tidytext_neg!=0) %>% 
            nrow() * 100 / nrow(d)) %>% round(2))
 
   

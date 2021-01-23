@@ -3,12 +3,15 @@
 .RData
 .Ruserdata
 
+/.ipynb_checkpoints
+
 *.jar
 *.rda
 *.rds
 *.csv
 *.txt
 *.html
+*.cmd
 
 SentiStrengthJavaManual.doc
 /SentiStrengthCom

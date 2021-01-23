@@ -24,11 +24,54 @@ true_retweets <- function(d){
   return(d)
 }
 
+fill_dictionaries_with_zero <- function(d) {
+  d$bing_pos[is.na(d$bing_pos)] <- 0
+  d$bing_neg[is.na(d$bing_neg)] <- 0
+  d$bing_scale[is.na(d$bing_scale)] <- 0
+  d$bing_binary <- ifelse(d$bing_scale >= 0, 1, 0)
+  d$bing_trinary <- ifelse(d$bing_scale>0, 1, ifelse(d$bing_scale<0, -1, 0))
+  
+  d$afinn_pos[is.na(d$afinn_pos)] <- 0
+  d$afinn_neg[is.na(d$afinn_neg)] <- 0
+  d$afinn_scale[is.na(d$afinn_scale)] <- 0
+  d$afinn_binary <- ifelse(d$afinn_scale >= 0, 1, 0)
+  d$afinn_trinary <- ifelse(d$afinn_scale>0, 1, ifelse(d$afinn_scale<0, -1, 0))
+  
+  d$loughran_pos[is.na(d$loughran_pos)] <- 0
+  d$loughran_neg[is.na(d$loughran_neg)] <- 0
+  d$loughran_scale[is.na(d$loughran_scale)] <- 0
+  d$loughran_binary <- ifelse(d$loughran_scale >= 0, 1, 0)
+  d$loughran_trinary <- ifelse(d$loughran_scale>0, 1, ifelse(d$loughran_scale<0, -1, 0))
+  
+  d$nrc_pos[is.na(d$nrc_pos)] <- 0
+  d$nrc_neg[is.na(d$nrc_neg)] <- 0
+  d$nrc_scale[is.na(d$nrc_scale)] <- 0
+  d$nrc_binary <- ifelse(d$nrc_scale >= 0, 1, 0)
+  d$nrc_trinary <- ifelse(d$nrc_scale>0, 1, ifelse(d$nrc_scale<0, -1, 0))
+  
+  d$tidytext_pos[is.na(d$tidytext_pos)] <- 0
+  d$tidytext_neg[is.na(d$tidytext_neg)] <- 0
+  d$tidytext_scale[is.na(d$tidytext_scale)] <- 0
+  d$tidytext_binary <- ifelse(d$tidytext_scale >= 0, 1, 0)
+  d$tidytext_trinary <- ifelse(d$tidytext_scale>0, 1, ifelse(d$tidytext_scale<0, -1, 0))
+  
+  # 13 VADER responses were erroneous and will be filled with (0, 0)
+  
+  d$vader_pos[is.na(d$vader_pos)] <- 0
+  d$vader_neg[is.na(d$vader_neg)] <- 0
+  d$vader_scale[is.na(d$vader_scale)] <- 0
+  d$vader_binary <- ifelse(d$vader_scale >= 0, 1, 0)
+  d$vader_trinary <- ifelse(d$vader_scale>0, 1, ifelse(d$vader_scale<0, -1, 0))
+  
+  return(d)
+}
+
 clean_master <- function(d){
   d %>%
     preprocess_text() %>%
     remove_langs() %>%
-    true_retweets() 
+    true_retweets() %>% 
+    fill_dictionaries_with_zero()
 }
 
 ##### Adding main variables #####
