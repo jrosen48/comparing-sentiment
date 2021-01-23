@@ -50,12 +50,21 @@ correct_tidytext_by_nwords <- function(d){
   return(d)
 }
 
+add_ambiguity_measure <- function(d) {
+  d$ss_ambi <- abs(d$ss_pos)+abs(d$ss_neg)
+  d$liwc_ambi <- abs(d$liwc_pos)+abs(d$liwc_neg)
+  d$tidytext_ambi <- abs(d$tidytext_pos)+abs(d$tidytext_neg)
+  d$vader_ambi <- abs(d$vader_pos)+abs(d$vader_neg)
+  return(d)
+}
+
 add_vars_master <- function(d){
   return(
     d %>%
       add_nchar() %>%
       add_nwords() %>% 
-      correct_tidytext_by_nwords()  # this is still technically cleaning, but well...
+      correct_tidytext_by_nwords() %>%   # this is still technically cleaning, but well...
+      add_ambiguity_measure()
   )
 }
 
@@ -190,10 +199,12 @@ merge_and_export_validation <- function(d, v) {
 
 ##### B SELECT DESCRIPTIVE VARS #####
 
-select_descrptive_vars <- function(d){
+select_descriptive_vars <- function(d){
   d %>% select(
     ends_with("_id"), ends_with("_at"), starts_with("is_"),
-    ends_with("count"), nchar, nwords, q, isChat
+    ends_with("count"), nchar, nwords, q, isChat,
+    ends_with("scale"), ends_with("pos"), ends_with("neg"),
+    ends_with("ambi")
   )
 }
 

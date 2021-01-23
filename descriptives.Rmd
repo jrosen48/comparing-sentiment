@@ -15,9 +15,7 @@ library(tidyverse)
 ## Loading final data set from Targets cache
 
 ```{r loading data}
-targets::tar_load("final_data")
-d <- final_data
-rm(final_data)
+d <- targets::tar_read(data_context)
 ```
 
 ## Variables used in the analysis
@@ -38,11 +36,6 @@ rm(final_data)
 * nchar: number of character of text_clean
 * nwords: number of word of text_clean
 
-### User level
-
-* is_teacher: 1 if user was classified as teacher by our ML model by his bio at time of download (dl_at) with ambiguous classifications over time randomized and standardized across measurement points
-* description: user's bio on which teacher classification was based on (with the exception of changing bios over time that elicited both classifications as teacher and as non-teacher which where later randomized)
-
 ### Context variables
 
 * isChat: 1 if tweet was posted inside of #NGSSchat chat session, 0 if not, NA if tweet does not include #NGSSchat
@@ -62,38 +55,12 @@ rm(final_data)
 * total_discrepancy_{pos/neg/scale}: Sum of pair-wise discrepancies for all three ratings (positivity, negativity, scale), dividied by the number of available comparisons.
 * n_combinations_{pos/neg/scale}: Number of available comparisons for total_discrepancy_{pos/neg/scale} for later reference. Currently this index is equally large for pos/neg/scale alike, as 0s were assigned in tidytext dictionary approaches when at least one match (positive or negative) was found. CB: We might want to re-discuss this, it seems to alter results quite a bit.
 
-## Sample and a glimspe at the variables
-
-```{r sample}
-d$is_teacher <- as.factor(d$is_teacher)
-d$ss_binary <- as.factor(d$ss_binary)
-d$liwc_binary <- as.factor(d$liwc_binary)
-d$tidytext_binary <- as.factor(d$tidytext_binary)
-d$n_combinations_scale <- as.factor(d$n_combinations_scale)
-d %>% 
-  select(status_id, user_id,
-         created_at, dl_at,
-         favorite_count, retweet_count,
-         nchar, nwords,
-         is_teacher, isChat, q,
-         ss_binary, liwc_binary, tidytext_binary,
-         ss_pos_scaled, ss_neg_scaled, ss_scale_scaled,
-         liwc_pos_scaled, liwc_neg_scaled, liwc_scale_scaled,
-         tidytext_pos_scaled, tidytext_neg_scaled, tidytext_scale_scaled,
-         ss_ambi, liwc_ambi, tidytext_ambi,
-         total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale,
-         n_combinations_scale
-         ) %>% 
-  skimr::skim()
-```
-
 ## Correlations pos scales
 
 ```{r correlations scales pos}
-d %>% 
-  select(
-         ss_pos_scaled, liwc_pos_scaled, tidytext_pos_scaled
-         ) %>% 
+d %>%
+  filter_all(any_vars(!is.na(.))) %>% 
+  select(ends_with("pos")) %>% 
   select_if(is.numeric) %>% 
   corrr::correlate() %>% 
   corrr::fashion() %>%
@@ -104,9 +71,8 @@ d %>%
 
 ```{r correlations scales neg}
 d %>% 
-  select(
-         ss_neg_scaled, liwc_neg_scaled, tidytext_neg_scaled
-         ) %>% 
+  filter_all(any_vars(!is.na(.))) %>% 
+  select(ends_with("neg")) %>% 
   select_if(is.numeric) %>% 
   corrr::correlate() %>% 
   corrr::fashion() %>%
@@ -117,60 +83,37 @@ d %>%
 
 ```{r correlations scales overall}
 d %>% 
-  select(
-         ss_scale_scaled, liwc_scale_scaled, tidytext_scale_scaled
-         ) %>% 
+  filter_all(any_vars(!is.na(.))) %>% 
+  select(ends_with("scale")) %>% 
   select_if(is.numeric) %>% 
   corrr::correlate() %>% 
   corrr::fashion() %>%
   knitr::kable()
-```
-
-## Confusion matrix Sentistrength, LIWC
-
-```{r confusion matrix Sentistrength LIWC}
-d$ss_binary <- factor(d$ss_binary, levels=c(-1, 1), labels=c(0, 1))
-d$liwc_binary <- as.factor(d$liwc_binary)
-print("PREDICTION: Sentistrength; REFERENCE: LIWC")
-caret::confusionMatrix(data=d$ss_binary, reference=d$liwc_binary)
-```
-
-## Confusion matrix LIWC, Tidytext - Excluding Tidytext non-matches
-
-```{r confusion matrix LIWC Tidytext}
-d$tidytext_binary <- as.factor(d$tidytext_binary)
-d$liwc_binary <- as.factor(d$liwc_binary)
-print("PREDICTION: Tidytext; REFERENCE: LIWC")
-caret::confusionMatrix(data=d$tidytext_binary, reference=d$liwc_binary)
-```
-
-## Confusion matrix Sentistrength, Tidytext - Excluding Tidytext non-matches
-
-```{r confusion matrix Sentistrength Tidytext}
-d$ss_binary[d$ss_binary == -1] <- 0
-d$ss_binary <- as.factor(d$ss_binary)
-d$tidytext_binary <- as.factor(d$tidytext_binary)
-print("PREDICTION: Sentistrength; REFERENCE: Tidytext")
-caret::confusionMatrix(data=d$ss_binary, reference=d$tidytext_binary)
 ```
 
 ## Correlations ambiguity measures
 
 ```{r correlations ambiguity measures}
 d %>% 
-  select(
-         ss_ambi, liwc_ambi, tidytext_ambi
-         ) %>% 
+  filter_all(any_vars(!is.na(.))) %>% 
+  select(ends_with("ambi")) %>% 
   select_if(is.numeric) %>% 
   corrr::correlate() %>% 
   corrr::fashion() %>%
   knitr::kable()
 ```
 
-## Individual tidytext dictionary coverage
+## Coverage
 
 ```{r dictionary coverage, echo=FALSE}
-  print("descriptives_coverage")
+
+  print("SentiStrength:")
+  print((d %>% filter(ss_pos!=1 | ss_neg!=-1) %>% nrow() * 100 / nrow(d)) %>% round(2))
+
+  print("LIWC:")
+  print((d %>% filter(liwc_pos!=0 | liwc_neg!=0) %>% nrow() * 100 / nrow(d)) %>% round(2))
+  
+  print("Tidytext:")
   print("bing")
   print((d$bing_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
   print("afinn")
@@ -179,29 +122,29 @@ d %>%
   print((d$loughran_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
   print("nrc")
   print((d$nrc_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2))
-  print("tidytext_scale")
+  print("tidytext overall")
   print((d$tidytext_scale %>% is.na() %>% `!` %>% sum() * 100 / nrow(d)) %>% round(2)) 
+  
+  print("VADER:")
+  print((d %>% filter(vader_pos!=0 | vader_neg!=0) %>% nrow() * 100 / nrow(d)) %>% round(2))
+
+  print("All together:")
+  print((d %>% 
+           filter(ss_pos!=1 | ss_neg!=-1 | liwc_pos!=0 | liwc_neg!=0 | vader_pos!=0 | vader_neg!=0 | 
+                    !is.na(tidytext_scale)) %>% 
+           nrow() * 100 / nrow(d)) %>% round(2))
+
+  
 ```
 
 ## Pair-wise discrepancies
 
-```{r pair-wise discrepancies pos}
-d %>% select(
-  "ss_liwc_discrepancy_pos",
-  "ss_tidytext_discrepancy_pos",
-  "liwc_tidytext_discrepancy_pos",
-  "ss_liwc_discrepancy_neg",
-  "ss_tidytext_discrepancy_neg",
-  "liwc_tidytext_discrepancy_neg",
-  "ss_liwc_discrepancy_scale",
-  "ss_tidytext_discrepancy_scale",
-  "liwc_tidytext_discrepancy_scale",
-  "total_discrepancy_pos",
-  "total_discrepancy_neg",
-  "total_discrepancy_scale"
-  ) %>%
-  colMeans(na.rm=T) %>%
-  knitr::kable(digits = 2, col.names = "mean")
+```{r}
+d <- targets::tar_read(C_discrepancy)
+d %>% 
+  select(matches("disc")) %>% 
+  colMeans() %>% sort() %>% as.data.frame() %>%
+  knitr::kable(digits = 2)
 ```
 
 ## Discrepancy by context
@@ -214,20 +157,6 @@ d %>% select(
   "q",
   ) %>% 
   group_by(q) %>%
-  summarise_all(mean) %>%
-  knitr::kable(digits = 2)
-```
-
-## Discrepancy by teacher, non-teacher
-
-```{r discrepancy by teacher non-teacher}
-d %>% select(
-  "total_discrepancy_pos",
-  "total_discrepancy_neg",
-  "total_discrepancy_scale",
-  "is_teacher",
-  ) %>% 
-  group_by(is_teacher) %>%
   summarise_all(mean) %>%
   knitr::kable(digits = 2)
 ```
@@ -257,22 +186,7 @@ d %>% select(
   count() %>%
   ungroup() %>%
   spread(ss_binary, n) %>%
-  mutate(Sentiment_Ratio = `1`/`0`) %>%
-  knitr::kable(digits = 2)
-```
-
-## Sentiment Ratio (SentiStrenght, as in AERA open paper) by teacher, non-teacher
-
-```{r}
-d %>% select(
-  "ss_binary",
-  "is_teacher"
-  ) %>% 
-  group_by(is_teacher, ss_binary) %>%
-  count() %>%
-  ungroup() %>%
-  spread(ss_binary, n) %>%
-  mutate(Sentiment_Ratio = `1`/`0`) %>%
+  mutate(Sentiment_Ratio = `1`/`-1`) %>%
   knitr::kable(digits = 2)
 ```
 
@@ -287,17 +201,20 @@ d %>% select(
   count() %>%
   ungroup() %>%
   spread(ss_binary, n) %>%
-  mutate(Sentiment_Ratio = `1`/`0`) %>%
+  mutate(Sentiment_Ratio = `1`/`-1`) %>%
   knitr::kable(digits = 2)
 ```
 
 ## Ambiguity by context
 
 ```{r ambiguity by context}
-d %>% select(
+d %>% 
+  mutate(vader_ambi=abs(vader_pos)+abs(vader_neg)) %>% 
+  select(
   "ss_ambi",
   "liwc_ambi",
   "tidytext_ambi",
+  "vader_ambi",
   "q",
   ) %>% 
   group_by(q) %>%
@@ -305,27 +222,16 @@ d %>% select(
   knitr::kable(digits = 5)
 ```
 
-## Ambiguity by teacher, non-teacher
-
-```{r ambiguity by teacher non-teacher}
-d %>% select(
-  "ss_ambi",
-  "liwc_ambi",
-  "tidytext_ambi",
-  "is_teacher",
-  ) %>% 
-  group_by(is_teacher) %>%
-  summarise_all(mean, na.rm=T) %>%
-  knitr::kable(digits = 5)
-```
-
 ## Ambiguity by isChat
 
 ```{r ambiguity by isChat}
-d %>% select(
+d %>% 
+  mutate(vader_ambi=abs(vader_pos)+abs(vader_neg)) %>% 
+  select(
   "ss_ambi",
   "liwc_ambi",
   "tidytext_ambi",
+  "vader_ambi",
   "isChat",
   ) %>% 
   group_by(isChat) %>%
@@ -337,9 +243,10 @@ d %>% select(
 
 ```{r correlations discrepancy}
 d %>% 
+  mutate(vader_ambi=abs(vader_pos)+abs(vader_neg)) %>% 
   select(nchar, nwords,
          favorite_count, retweet_count,
-         ss_ambi, liwc_ambi, tidytext_ambi, 
+         ss_ambi, liwc_ambi, tidytext_ambi, vader_ambi,
          total_discrepancy_pos, total_discrepancy_neg, total_discrepancy_scale
          ) %>% 
   select_if(is.numeric) %>% 
@@ -348,188 +255,4 @@ d %>%
   corrr::fashion() %>%
   knitr::kable()
 ```
-
-```{r correlations discrepancy sqrt transformed}
-d$total_discrepancy_pos_sqrt <- d$total_discrepancy_pos %>% sqrt
-d$total_discrepancy_neg_sqrt <- d$total_discrepancy_neg %>% sqrt
-d$total_discrepancy_scale_sqrt <- d$total_discrepancy_scale %>% sqrt
-
-d %>% 
-  select(nchar, nwords,
-         favorite_count, retweet_count,
-         ss_ambi, liwc_ambi, tidytext_ambi, 
-         total_discrepancy_pos_sqrt, total_discrepancy_neg_sqrt, total_discrepancy_scale_sqrt
-         ) %>% 
-  select_if(is.numeric) %>% 
-  corrr::correlate() %>% 
-  select(rowname, total_discrepancy_pos_sqrt, total_discrepancy_neg_sqrt, total_discrepancy_scale_sqrt) %>%
-  corrr::fashion() %>%
-  knitr::kable(caption = "Correlates of dicrepancy measures, sqrt-transformed")
-```
-
-```{r correlations discrepancy log transformed}
-d$total_discrepancy_pos_log <- d$total_discrepancy_pos %>% log
-d$total_discrepancy_neg_log <- d$total_discrepancy_neg %>% log
-d$total_discrepancy_scale_log <- d$total_discrepancy_scale %>% log
-
-d %>% 
-  select(nchar, nwords,
-         favorite_count, retweet_count,
-         ss_ambi, liwc_ambi, tidytext_ambi, 
-         total_discrepancy_pos_log, total_discrepancy_neg_log, total_discrepancy_scale_log
-         ) %>% 
-  select_if(is.numeric) %>% 
-  corrr::correlate() %>% 
-  select(rowname, total_discrepancy_pos_log, total_discrepancy_neg_log, total_discrepancy_scale_log) %>%
-  corrr::fashion() %>%
-  knitr::kable(caption = "Correlates of dicrepancy measures, log-transformed")
-```
-
-## Distribution properties
-
-## Pos
-
-### SentiStrength
-
-```{r}
-d %>% 
-  ggplot(aes(x = ss_pos)) +
-  geom_histogram()
-```
-
-### LIWC, many tweets assigned 0 for pos
-
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_pos)) +
-  geom_histogram(bins=100)
-```
-
-### Tidytext
-
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_pos)) +
-  geom_histogram(bins=100)
-```
-
-## Neg
-
-### SentiStrength
-
-```{r}
-d %>% 
-  ggplot(aes(x = ss_neg)) +
-  geom_histogram()
-```
-
-### LIWC
-
-### Many tweets assigned 0 for neg
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_neg)) +
-  geom_histogram()
-```
-
-### Without 0s
-
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_neg)) +
-  geom_histogram(bins=150) +
-  ylim(0, 15000) + 
-  xlim(0, 15)
-```
-
-### Tidytext, simlar story, many 0s for neg
-
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_neg)) +
-  geom_histogram(bins=150)
-```
-
-## Ambiguity
-
-### Tidytext
-
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_ambi)) +
-  geom_histogram(bins=150) +
-  xlim(0, 0.5) + 
-  ylim(0, 50000)
-```
-```
-### SentiStrength
-
-```{r}
-d %>% 
-  ggplot(aes(x = ss_ambi)) +
-  geom_histogram()
-```
-
-### LIWC
-
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_ambi)) +
-  geom_histogram(bins=150) +
-  ylim(0, 50000) +
-  xlim(0, 40)
-```
-
-## Scale, holds many 0 and slightly positive tweets
-
-### SentiStrength
-
-```{r}
-d %>% 
-  ggplot(aes(x = ss_scale)) +
-  geom_histogram()
-```
-
-### LIWC
-
-```{r}
-d %>% 
-  ggplot(aes(x = liwc_scale)) +
-  geom_histogram(bins=30)
-```
-
-### Tidytext
-
-```{r}
-d %>% 
-  ggplot(aes(x = tidytext_scale)) +
-  geom_histogram(bins=100)
-```
-
-## Discrepancy
-
-### Overall, right skwwed but quite normally distributed
-
-```{r}
-d %>% 
-  ggplot(aes(x = total_discrepancy_scale)) +
-  geom_histogram(bins=300)
-```
-
-### Pos, right skwwed but quite normally distributed
-
-```{r}
-d %>% 
-  ggplot(aes(x = total_discrepancy_pos)) +
-  geom_histogram(bins=300)
-```
-
-### Neg, very right skewed and not normally distributed due to many 0 assignments for negativity
-
-```{r}
-d %>% 
-  ggplot(aes(x = total_discrepancy_neg)) +
-  geom_histogram(bins=100)
-```
-
 

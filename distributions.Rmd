@@ -1,0 +1,153 @@
+---
+title: "Distributions"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Loading final data set from Targets cache
+
+```{r loading data}
+d <- targets::tar_read(data_context)
+```
+
+## Pos
+
+```{r}
+p1 <- d %>% 
+  ggplot(aes(x = ss_pos)) +
+  geom_histogram()
+
+p2 <- d %>% 
+  ggplot(aes(x = liwc_pos)) +
+  geom_histogram(bins=100)
+
+p3 <- d %>% 
+  ggplot(aes(x = tidytext_pos)) +
+  geom_histogram(bins=100)
+
+p4 <- d %>% 
+  ggplot(aes(x = vader_pos)) +
+  geom_histogram(bins=100)
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol=2)
+
+```
+
+## Pos without non-matches
+
+```{r}
+p2<-p2+xlim(.0000001,max(d$liwc_pos))
+p3<-p3+xlim(.0000001,max(d$tidytext_pos))
+p4<-p4+xlim(.0000001,max(d$vader_pos))
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol=2)
+```
+
+## Neg
+
+```{r}
+p1 <- d %>% 
+  ggplot(aes(x = ss_neg)) +
+  geom_histogram()
+p2 <- d %>% 
+  ggplot(aes(x = liwc_neg)) +
+  geom_histogram()
+p3 <- d %>% 
+  ggplot(aes(x = tidytext_neg)) +
+  geom_histogram(bins=150)
+p4 <- d %>% 
+  ggplot(aes(x = vader_neg)) +
+  geom_histogram(bins=150)
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol=2)
+
+```
+
+## Neg without non-matches
+
+```{r}
+p2<-p2+xlim(.0000001,max(d$liwc_neg))
+p3 <- d %>% filter(tidytext_neg!=0) %>% 
+  ggplot(aes(x = tidytext_neg)) +
+  geom_histogram(bins=150)
+p4<-p4+xlim(.0000001,max(d$vader_pos))
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol=2)
+```
+
+## Ambiguity
+
+```{r}
+p1 <- d %>% 
+  ggplot(aes(x = tidytext_ambi)) +
+  geom_histogram(bins=150) +
+  xlim(0, 0.5) + 
+  ylim(0, 50000)
+p2 <- d %>% 
+  ggplot(aes(x = ss_ambi)) +
+  geom_histogram()
+p3 <- d %>% 
+  ggplot(aes(x = liwc_ambi)) +
+  geom_histogram(bins=150) +
+  ylim(0, 50000) +
+  xlim(0, 40)
+p4 <- d %>% 
+  ggplot(aes(x = abs(vader_pos)+abs(vader_neg))) +
+  geom_histogram()
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol=2)
+```
+
+## Scale, holds many 0 and slightly positive tweets
+
+```{r}
+p1 <- d %>% 
+  ggplot(aes(x = ss_scale)) +
+  geom_histogram()
+p2 <- d %>% 
+  ggplot(aes(x = liwc_scale)) +
+  geom_histogram(bins=30)
+p3 <- d %>% 
+  ggplot(aes(x = tidytext_scale)) +
+  geom_histogram(bins=100)
+p4 <- d %>% 
+  ggplot(aes(x = vader_scale)) +
+  geom_histogram(bins=100)
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol=2)
+```
+### Use pos+neg for vader instead of compound yields similar bimodal pattern
+
+```{r}
+d %>% 
+  ggplot(aes(x = vader_pos-vader_neg)) +
+  geom_histogram(bins=100)
+
+```
+
+## Discrepancy
+
+```{r}
+d <- targets::tar_read(C_discrepancy)
+p1 <- d %>% 
+  ggplot(aes(x = total_discrepancy_scale)) +
+  geom_histogram(bins=300)
+
+p2 <- d %>% 
+  ggplot(aes(x = total_discrepancy_pos)) +
+  geom_histogram(bins=300)
+
+p3 <- d %>% 
+  ggplot(aes(x = total_discrepancy_neg)) +
+  geom_histogram(bins=100)
+
+gridExtra::grid.arrange(p1, p2, p3, ncol=2)
+```

@@ -27,7 +27,7 @@ targets <- list(
   
   # Endpoint B: Descriptive data
   
-  tar_target(B_descriptives, data_context %>% select_descrptive_vars()),
+  tar_target(B_descriptives, data_context %>% select_descriptive_vars()),
   
   # Endpoint C: Scale discrepancy analysis
   
