@@ -328,6 +328,7 @@ add_ambiguity_measure <- function(d){   # for robustness check and later explora
   d$ss_ambi <- abs(d$ss_pos) + abs(d$ss_neg)
   d$liwc_ambi <- abs(d$liwc_pos) + abs(d$liwc_neg)
   d$tidytext_ambi <- abs(d$tidytext_pos) + abs(d$tidytext_neg)
+  d$vader_ambi <- abs(d$vader_pos) + abs(d$vader_neg)
   return(d)
 }
 

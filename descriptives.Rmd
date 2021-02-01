@@ -55,6 +55,15 @@ d <- targets::tar_read(data_context)
 * total_discrepancy_{pos/neg/scale}: Sum of pair-wise discrepancies for all three ratings (positivity, negativity, scale), dividied by the number of available comparisons.
 * n_combinations_{pos/neg/scale}: Number of available comparisons for total_discrepancy_{pos/neg/scale} for later reference. Currently this index is equally large for pos/neg/scale alike, as 0s were assigned in tidytext dictionary approaches when at least one match (positive or negative) was found. CB: We might want to re-discuss this, it seems to alter results quite a bit.
 
+## SAMPLE
+
+```{r}
+print("Sample Size:"); print(nrow(d))
+print("Unique Users:"); print(d$user_id %>% unique() %>% length())
+print("Context:"); print(d$q %>% table())
+print("Of which is Chat:"); print(d$isChat %>% table())
+```
+
 ## Correlations pos scales
 
 ```{r correlations scales pos}

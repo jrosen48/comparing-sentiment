@@ -4,6 +4,8 @@
 .Ruserdata
 
 /.ipynb_checkpoints
+/modeling_cache
+*.png
 
 *.jar
 *.rda
