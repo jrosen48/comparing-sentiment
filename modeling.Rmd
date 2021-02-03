@@ -10,6 +10,8 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
+library(lmtest)
+library(sandwich)
 ```
 
 ## Loading final data set from Targets cache
@@ -41,6 +43,8 @@ m <- lm(total_discrepancy_pos ~
           ss_binary + liwc_binary + tidytext_binary + vader_binary, d)
 
 # summary(m)
+# robust standard errors
+# coeftest(m, vcov = vcovHC(m, type="HC1"))
 
 png("pos.png")
 par(mfrow=c(2,2))
@@ -56,6 +60,8 @@ m <- lm(total_discrepancy_neg ~
           ss_binary + liwc_binary + tidytext_binary + vader_binary, d)
 
 # summary(m)
+# robust standard errors
+# coeftest(m, vcov = vcovHC(m, type="HC1"))
 
 png("neg.png")
 par(mfrow=c(2,2))
@@ -71,6 +77,8 @@ m <- lm(total_discrepancy_scale ~
           ss_binary + liwc_binary + tidytext_binary + vader_binary, d)
 
 # summary(m)
+# robust standard errors
+# coeftest(m, vcov = vcovHC(m, type="HC1"))
 
 png("scale.png")
 par(mfrow=c(2,2))
