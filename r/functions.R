@@ -219,6 +219,10 @@ context_master <- function(d){
 
 merge_and_export_validation <- function(d, v) {
   
+  # vader guidelines for classification, corrected ad hoc
+  d$vader_trinary <- ifelse(d$vader_scale>=0.05,1,ifelse(d$vader_scale<=-0.05,-1,0))
+  d$vader_binary <- ifelse(d$vader_trinary==-1,0,1)
+  
   d <- d %>%
     select(status_id, nwords, ss_pos, ss_neg, ends_with("binary"), ends_with("trinary"))
   
@@ -389,3 +393,16 @@ calculate_manual_agreement <- function(agree_df) {
 #  print("COMBINED BINARY RATINGS")
 #  caret::confusionMatrix(data=d2$consensus_binary, reference=d2$combined_binary) %>% print
 #
+
+select_model_vars <- function(d){
+  return(
+    d %>% 
+      select(
+        matches("total"),
+        nwords,q,isChat,
+        ends_with("ambi"),
+        favorite_count,retweet_count,
+        ends_with("binary")
+      )
+  )
+}

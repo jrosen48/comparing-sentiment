@@ -17,7 +17,7 @@ library(sandwich)
 ## Loading final data set from Targets cache
 
 ```{r loading data}
-d <- targets::tar_read("C_discrepancy")
+d <- targets::tar_read("D_modeling")
 ```
 
 ## Modeling discrapancy
@@ -42,9 +42,12 @@ m <- lm(total_discrepancy_pos ~
           favorite_count + retweet_count + 
           ss_binary + liwc_binary + tidytext_binary + vader_binary, d)
 
+#car::vif(m)
+
+
 # summary(m)
 # robust standard errors
-# coeftest(m, vcov = vcovHC(m, type="HC1"))
+m<-coeftest(m, vcov = vcovHC(m, type="HC3"))
 
 png("pos.png")
 par(mfrow=c(2,2))
@@ -61,12 +64,12 @@ m <- lm(total_discrepancy_neg ~
 
 # summary(m)
 # robust standard errors
-# coeftest(m, vcov = vcovHC(m, type="HC1"))
+# coeftest(m, vcov = vcovHC(m, type="HC3"))
 
-png("neg.png")
-par(mfrow=c(2,2))
-plot(m)
-dev.off()
+#png("neg.png")
+#par(mfrow=c(2,2))
+#plot(m)
+#dev.off()
 
 # SCALE
 
@@ -78,7 +81,7 @@ m <- lm(total_discrepancy_scale ~
 
 # summary(m)
 # robust standard errors
-# coeftest(m, vcov = vcovHC(m, type="HC1"))
+# coeftest(m, vcov = vcovHC(m, type="HC3"))
 
 png("scale.png")
 par(mfrow=c(2,2))

@@ -21,7 +21,7 @@ targets <- list(
   
   # Endpoint A: Validation of classifications (with Python)
   
-  tar_target(validation_sample_file, "./data/final-validation-set.rds", format = "file"),
+  tar_target(validation_sample_file, "./data/validation-final.rds", format = "file"),
   tar_target(validation_sample, readRDS(validation_sample_file)),
   tar_target(A_validation_export_file, merge_and_export_validation(data_context, validation_sample)),
   
@@ -32,7 +32,11 @@ targets <- list(
   # Endpoint C: Scale discrepancy analysis
   
   tar_target(C_discrepancy, data_context %>% discrepancy_master()),
-  tar_target(full_export_file, C_discrepancy %>% (function(d, path="./data/final.rds"){saveRDS(d,path);path}), format="file")
+  tar_target(full_export_file, C_discrepancy %>% (function(d, path="./data/final.rds"){saveRDS(d,path);path}), format="file"),
+  
+  # Endpoint D: Modeling
+  
+  tar_target(D_modeling, C_discrepancy %>% select_model_vars())
   
 )
 
