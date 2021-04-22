@@ -72,7 +72,7 @@ d <- readRDS("./data/raw_all.rds")$text
 
 # Apply vader by chunks of size 500 in order to be able to save progress
 
-chunk <- 500
+chunk <- 1000
 n <- length(d)
 r  <- rep(1:ceiling(n/chunk),each=chunk)[1:n]
 d <- split(d,r)
@@ -87,10 +87,18 @@ res <- l[[1]]; start <- l[[2]]; d <- l[[3]]
 
 apply_vader <- function(d) d %>% vader_df() %>% select(pos, neg, compound)
 
+cat(format(Sys.time(), "%a %b %d %X %Y"))
 for (i in start:length(d)) {
+    cat(format(Sys.time(), "%a %b %d %X %Y"))
     res[[i]] <- d[[i]] %>% apply_vader()
     cat("\014", i, "out of", length(d), "done\n")
 }
+cat(format(Sys.time(), "%a %b %d %X %Y"))
+
+# 10 s for 1 out of 1455 chunks
+# (10*1455)/3600 ~ 4 hours
+# tidytext: 3 minutes on this PC
+# (10*1455)/60 = 242 minutes / 3 = 80 times slower
 
 # Optionally stop and start from saved file later
 # saveRDS(list(res, i, d), "vader_current.rds")
